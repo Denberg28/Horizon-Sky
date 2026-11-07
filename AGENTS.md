@@ -119,5 +119,11 @@ Report concisely: what changed/why; version/commit/artifact; checks/results; unt
 
 **Done means agreed scope implemented, applicable verification passed, documentation current, and authorized deliverable available. Never claim stable readiness without evidence.**
 
-## Project
-Horizon Sky: Godot 4.6.3 native Windows flight-skills game. Initial baseline: empty repository; no known-good game exists. Hardware validation is required before stable promotion.
+## Horizon Sky project settings
+
+- Native Windows x86_64 game; Godot 4.6.3 stable, Compatibility renderer, GDScript. Procedural polygon art only; references inform style and are not redistributed.
+- Offline USB joystick input and local profile storage. No radio transmission or physical actuator outputs. Never silently change the selected input authority.
+- Preserve explicit launch/resume checks, disconnect/focus pause, calibration validation, and save recovery. Changes affecting these need regression checks.
+- Run `godot --headless --path . --editor --import --quit`, then `godot --headless --path . --script tests/run_tests.gd -- --test`. Tests must use isolated test save paths.
+- RadioMaster Pocket/other USB HID controller HIL and Windows interactive checks are required for stable. Until evidenced, publish only labeled prereleases.
+- Do not overwrite published versions. Keep candidate build workflow gated on source, behavior and Windows package smoke checks.

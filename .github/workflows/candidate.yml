@@ -1,0 +1,101 @@
+name: Verify and build Windows candidate
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: candidate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install pinned Godot and Windows templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://github.com/godotengine/godot-builds/releases/download/4.6.3-stable
+          curl --fail --location --retry 3 "$base/Godot_v4.6.3-stable_linux.x86_64.zip" -o /tmp/editor.zip
+          curl --fail --location --retry 3 "$base/Godot_v4.6.3-stable_export_templates.tpz" -o /tmp/templates.tpz
+          curl --fail --location --retry 3 "$base/SHA512-SUMS.txt" -o /tmp/sums.txt
+          python3 scripts/verify_downloads.py /tmp/sums.txt /tmp/editor.zip Godot_v4.6.3-stable_linux.x86_64.zip /tmp/templates.tpz Godot_v4.6.3-stable_export_templates.tpz
+          unzip -q /tmp/editor.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.6.3-stable_linux.x86_64 /usr/local/bin/godot
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.6.3.stable"
+          unzip -j /tmp/templates.tpz 'templates/windows_release_x86_64.exe' -d "$HOME/.local/share/godot/export_templates/4.6.3.stable"
+      - name: Source and behavior gates
+        run: |
+          set -euo pipefail
+          mkdir -p build/evidence
+          godot --headless --path . --editor --import --quit 2>&1 | tee build/evidence/import.log
+          ! rg 'SCRIPT ERROR|Parse Error|ERROR:' build/evidence/import.log
+          godot --headless --path . --script tests/run_tests.gd -- --test 2>&1 | tee build/evidence/tests.log
+          ! rg 'SCRIPT ERROR|Parse Error|ERROR:' build/evidence/tests.log
+          python3 scripts/check_source.py
+      - name: Export and package
+        run: |
+          set -euo pipefail
+          godot --headless --path . --export-release 'Windows Desktop' build/HorizonSky.exe 2>&1 | tee build/evidence/export.log
+          ! rg 'SCRIPT ERROR|Parse Error|ERROR:' build/evidence/export.log
+          python3 scripts/package.py --commit '${{ github.sha }}'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-candidate
+          path: |
+            build/HorizonSky-*-windows-x86_64.zip
+            build/SHA256SUMS.txt
+            build/evidence/
+          if-no-files-found: error
+          retention-days: 30
+  windows-smoke:
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: windows-candidate
+          path: candidate
+      - name: Verify and execute packaged Windows binary
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem candidate -Filter *.zip | Select-Object -First 1
+          $expected = ((Get-Content candidate/SHA256SUMS.txt) -split ' ')[0].ToLower()
+          if ((Get-FileHash $zip.FullName -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw 'Checksum mismatch' }
+          Expand-Archive $zip.FullName -DestinationPath package
+          if (!(Test-Path package/HorizonSky.pck)) { throw 'Missing game data' }
+          $process = Start-Process -FilePath package/HorizonSky.exe -ArgumentList '--headless','--path','package','--','--frames=120' -PassThru -RedirectStandardOutput smoke.log -RedirectStandardError smoke.err
+          if (!$process.WaitForExit(30000)) { $process.Kill(); throw 'Windows startup timed out' }
+          if ($process.ExitCode -ne 0) { Get-Content smoke.err; throw 'Windows executable failed' }
+          if (Select-String -Path smoke.log,smoke.err -Pattern 'SCRIPT ERROR|Parse Error|ERROR:') { throw 'Runtime errors in Windows package' }
+          Get-Content smoke.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: windows-smoke-evidence
+          path: smoke.*
+  publish:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [build, windows-smoke]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: windows-candidate
+          path: candidate
+      - name: Publish immutable test candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(python3 -c 'import re; print(re.search(r"config/version=\"([^\"]+)\"", open("project.godot").read()).group(1))')
+          [[ "$version" == *-rc.* ]]
+          gh release create "v$version" candidate/*.zip candidate/SHA256SUMS.txt --target '${{ github.sha }}' --title "Horizon Sky $version — test candidate" --notes-file docs/RELEASE_NOTES.md --prerelease
