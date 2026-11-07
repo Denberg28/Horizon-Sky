@@ -69,7 +69,7 @@ jobs:
           if ((Get-FileHash $zip.FullName -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw 'Checksum mismatch' }
           Expand-Archive $zip.FullName -DestinationPath package
           if (!(Test-Path package/HorizonSky.pck)) { throw 'Missing game data' }
-          $process = Start-Process -FilePath package/HorizonSky.exe -ArgumentList '--headless','--path','package','--','--frames=120' -PassThru -RedirectStandardOutput smoke.log -RedirectStandardError smoke.err
+          $process = Start-Process -FilePath (Resolve-Path package/HorizonSky.exe).Path -WorkingDirectory (Resolve-Path package).Path -ArgumentList '--headless','--','--frames=120' -PassThru -RedirectStandardOutput smoke.log -RedirectStandardError smoke.err
           if (!$process.WaitForExit(30000)) { $process.Kill(); throw 'Windows startup timed out' }
           if ($process.ExitCode -ne 0) { Get-Content smoke.err; throw 'Windows executable failed' }
           if (Select-String -Path smoke.log,smoke.err -Pattern 'SCRIPT ERROR|Parse Error|ERROR:') { throw 'Runtime errors in Windows package' }
