@@ -70,7 +70,14 @@ func read(dt: float) -> Vector4:
 		return Vector4.ZERO
 	if keyboard:
 		throttle = clampf(throttle + (float(Input.is_physical_key_pressed(KEY_E)) - float(Input.is_physical_key_pressed(KEY_Q))) * dt * 0.4, 0, 1)
-		return Vector4(float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A)), float(Input.is_physical_key_pressed(KEY_S)) - float(Input.is_physical_key_pressed(KEY_W)), float(Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_LEFT)), throttle)
+		# OR aliases before subtracting: duplicate directions never double output;
+		# opposing directions cancel even when mixed across the two key sets.
+		var right = Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)
+		var left = Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)
+		var nose_up = Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
+		var nose_down = Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
+		var yaw = float(Input.is_physical_key_pressed(KEY_C)) - float(Input.is_physical_key_pressed(KEY_Z))
+		return Vector4(float(right) - float(left), float(nose_up) - float(nose_down), yaw, throttle)
 	var values = Vector4.ZERO
 	for i in range(4):
 		values[i] = normalized(Input.get_joy_axis(device, int(mapping[i].axis)), mapping[i], i == 3)

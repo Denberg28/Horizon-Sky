@@ -18,12 +18,56 @@ func check(condition: bool, description: String):
 func _initialize():
 	call_deferred("run")
 
+func send_key(code: int, pressed: bool):
+	var event = InputEventKey.new()
+	event.physical_keycode = code
+	event.keycode = code
+	event.pressed = pressed
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
+
 func run():
 	if not "--test" in OS.get_cmdline_user_args():
 		push_error("Run with -- --test to isolate save data")
 		quit(1)
 		return
 	var radio = Radio.new()
+	var key_pairs = [[KEY_W, KEY_UP, 1, -1.0], [KEY_S, KEY_DOWN, 1, 1.0], [KEY_A, KEY_LEFT, 0, -1.0], [KEY_D, KEY_RIGHT, 0, 1.0]]
+	for pair in key_pairs:
+		send_key(pair[0], true)
+		var wasd = radio.read(0)
+		send_key(pair[0], false)
+		send_key(pair[1], true)
+		var arrow = radio.read(0)
+		check(wasd == arrow and arrow[int(pair[2])] == pair[3], "WASD/arrow direction equivalence %s" % OS.get_keycode_string(pair[0]))
+		send_key(pair[0], true)
+		check(radio.read(0) == arrow, "same-direction alias does not double input %s" % OS.get_keycode_string(pair[0]))
+		send_key(pair[0], false)
+		send_key(pair[1], false)
+	check(radio.read(0) == Vector4(0, 0, 0, 0.35), "released keys return centered axes; throttle holds")
+	send_key(KEY_D, true)
+	send_key(KEY_LEFT, true)
+	send_key(KEY_W, true)
+	send_key(KEY_DOWN, true)
+	check(radio.read(0) == Vector4(0, 0, 0, 0.35), "mixed-layout opposing directions cancel")
+	for code in [KEY_D, KEY_LEFT, KEY_W, KEY_DOWN]:
+		send_key(code, false)
+	send_key(KEY_RIGHT, true)
+	send_key(KEY_S, true)
+	check(radio.read(0) == Vector4(1, 1, 0, 0.35), "mixed-layout diagonal pitch/bank remain independent")
+	send_key(KEY_RIGHT, false)
+	send_key(KEY_S, false)
+	for pair in [[KEY_Z, -1.0], [KEY_C, 1.0]]:
+		send_key(pair[0], true)
+		check(radio.read(0).z == pair[1], "Z/C yaw direction %s" % OS.get_keycode_string(pair[0]))
+		send_key(pair[0], false)
+	send_key(KEY_E, true)
+	check(radio.read(10).w == 1, "keyboard throttle clamps at maximum")
+	send_key(KEY_E, false)
+	send_key(KEY_Q, true)
+	check(radio.read(10).w == 0, "keyboard throttle clamps at minimum")
+	send_key(KEY_Q, false)
+	radio.throttle = 0.35
 	check(radio.valid_mapping(radio.mapping), "default axis mapping schema")
 	var m: Dictionary = radio.mapping[0]
 	check(is_equal_approx(Radio.normalized(0, m), 0), "center is zero")
@@ -44,7 +88,9 @@ func run():
 	check(not radio.valid_mapping(bad), "malformed saved mapping rejected")
 	radio.select_radio(99)
 	radio.calibrated = true
-	check(not radio.ready_to_fly() and radio.read(0.01) == Vector4.ZERO, "device loss freezes authority with no keyboard fallback")
+	send_key(KEY_RIGHT, true)
+	check(not radio.ready_to_fly() and radio.read(0.01) == Vector4.ZERO, "device loss ignores held keyboard input with no fallback")
+	send_key(KEY_RIGHT, false)
 	var model = Flight.new()
 	model.reset(0)
 	for n in range(120):

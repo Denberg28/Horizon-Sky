@@ -24,3 +24,5 @@ Score = passed-gate share ×65 + precision ×25 + smoothness ×10; incomplete se
 Schema 1 contains controllers keyed by GUID/name and records keyed by planet/craft. Reads bounded to 1 MiB; invalid shape/types rejected. Write temp → flush/close → validate → copy valid prior main to backup → rename replacement. One process only; no concurrent-write transaction guarantee. Storage errors are visible and leave gameplay usable.
 
 No network, analytics, arbitrary script loading, shell calls or secrets. CI uses pinned actions, official engine/template checksums, read-only build permissions, and a separate authorized prerelease publication job. No signing continuity exists; candidate is unsigned.
+
+Keyboard map (rc.2): WASD and arrow keys are aliases for pitch/bank; Z/C yaw, Q/E throttle. Each direction ORs aliases before subtracting the opposite direction, keeping output bounded without duplicate-key gain. Physical key positions are used for layout-independent WASD. W/Up push nose down; S/Down pull nose up. Keyboard polling runs only for explicit keyboard authority.

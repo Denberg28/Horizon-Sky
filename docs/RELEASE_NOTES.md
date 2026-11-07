@@ -1,4 +1,6 @@
-Horizon Sky 0.1.0-rc.1 — TEST CANDIDATE
+Horizon Sky 0.1.0-rc.2 — TEST CANDIDATE
+
+Keyboard update: use WASD or arrow keys for pitch/bank; W/Up nose down, S/Down nose up, A/Left bank left, D/Right bank right. Z/C controls rudder and Q/E controls throttle. Keyboard is the default input mode. Duplicate directions do not double response; opposing directions cancel. Existing radio profiles and schema-1 saves remain compatible. The previous rc.1 package is retained for rollback.
 
 Original minimal polygon flight game for Windows x86_64. Terra, Ares and Europa courses; Kestrel trainer, Peregrine jet and Nomad spacecraft; 16 gates, terrain/pylon avoidance, live input feedback and local debrief/records. USB joystick mapping/inversion/calibration, keyboard practice, explicit pause/recovery and validated save backup.
 

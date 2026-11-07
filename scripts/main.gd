@@ -4,7 +4,7 @@ const RadioInput = preload("res://scripts/radio_input.gd")
 const ProfileStore = preload("res://scripts/profile_store.gd")
 const Course = preload("res://scripts/course.gd")
 const HUD = preload("res://scripts/hud.gd")
-const VERSION = "0.1.0-rc.1"
+const VERSION = "0.1.0-rc.2"
 const INK = Color("101e2c")
 const MINT = Color("b4ffcc")
 var flight = FlightModel.new()
@@ -254,7 +254,7 @@ func show_menu():
 	text(col, authority_name(), 18)
 	button(col, "Controller setup & calibration", show_calibration)
 	button(col, "Begin training   →", start_run)
-	text(col, "W / S  pitch     A / D  bank     ← / →  rudder\nQ / E  throttle     Esc  pause     F11  fullscreen", 16, Color("a9bbc4"))
+	text(col, "W / S or ↑ / ↓  pitch     A / D or ← / →  bank\nZ / C  rudder     Q / E  throttle\nEsc  pause     F11  fullscreen", 16, Color("a9bbc4"))
 	text(col, "16 gates • Fly through the center • Avoid terrain\nArcade handling; no real-aircraft qualification.", 16, Color("a9bbc4"))
 	if not profile.warning.is_empty():
 		text(col, profile.warning, 14, Color("ffbe91"))
@@ -272,7 +272,7 @@ func show_menu():
 
 func authority_name() -> String:
 	if radio.keyboard:
-		return "Keyboard practice"
+		return "Keyboard practice / WASD or arrow keys"
 	return Input.get_joy_name(radio.device) if radio.connected() else "Radio disconnected — select device again"
 
 func show_calibration():

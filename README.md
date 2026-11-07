@@ -2,7 +2,7 @@
 
 **A small world. A sharper pilot.** An offline Windows flight-skills game for USB radio controllers, with original procedural polygon art.
 
-**0.1.0-rc.1 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is an arcade training game, not a certified simulator or proof of real flight proficiency.
+**0.1.0-rc.2 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is an arcade training game, not a certified simulator or proof of real flight proficiency.
 
 ## Play
 
@@ -14,12 +14,14 @@
 
 | Control | Keyboard | Positive radio output |
 | --- | --- | --- |
-| Bank | A / D | Right bank |
-| Pitch | W / S | Climb (S = pull back) |
-| Rudder | Left / Right | Turn right |
+| Bank | A / D or ← / → | Right bank |
+| Pitch | W / S or ↑ / ↓ | Climb (S / ↓ = pull back; W / ↑ = nose down) |
+| Rudder | Z / C | Turn right |
 | Throttle | Q / E | Faster |
 | Pause / resume | Esc | Mouse UI |
 | Fullscreen | F11 | Mouse UI |
+
+**Keyboard is the default input mode**; no radio is needed. If a radio was selected, choose Keyboard practice in Controller setup. WASD and arrows may be mixed; opposite directions cancel and duplicate direction keys do not increase input. Arrow left/right now bank; rudder has moved to Z/C.
 
 Bank causes a turn; level wings do not restore heading. Pitch holds its last angle when centered. All craft maintain forward speed at low throttle. Missed gates do not end a run. Terrain contact, airspace limits (±145 m lateral / 180 m altitude), or 180 seconds end the session. No commands are sent to physical equipment.
 

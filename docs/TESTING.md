@@ -34,7 +34,7 @@ Path: **radio sticks → radio USB joystick firmware → data USB cable → Wind
 From source, run in PowerShell after extracting the package:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\windows_hil.ps1 -PackageDirectory C:\Games\HorizonSky-0.1.0-rc.1
+powershell -ExecutionPolicy Bypass -File .\scripts\windows_hil.ps1 -PackageDirectory C:\Games\HorizonSky-0.1.0-rc.2
 ```
 
 The script verifies EXE/PCK hashes, opens the game and prompts for observed results/evidence. ExecutionPolicy Bypass applies to this single invocation of the reviewed local script. It does not change machine settings. The script saves a local timestamped JSON report tied to source/version; it does not upload anything. The same script is bundled under scripts/ in the ZIP.
@@ -49,3 +49,5 @@ The script verifies EXE/PCK hashes, opens the game and prompts for observed resu
 8. Training observations: five initial/five later same-course/craft runs. Record median gates/precision/contact rate and practice interval. These observations do not certify real aircraft proficiency.
 
 Any critical/high defect blocks candidate/stable; fix, rerun affected software and HIL on final source. Missing required HIL/interactive evidence blocks stable. Record PASS / FAIL / NOT TESTED / BLOCKED with actual observations and evidence paths; N/A needs a reason. See EVIDENCE.md for observed agent results.
+
+Keyboard regression: both WASD and arrows must produce identical pitch/bank; W/Up nose down, S/Down nose up. Combine same-direction aliases (output remains ±1), mixed opposite directions (zero), release to neutral, diagonal inputs, Z/C yaw and Q/E bounded throttle. Pressing keys while a radio is selected must never take authority. Automated tests inject physical key events through Godot Input; physical Windows key rollover/focus and target-layout checks remain required.
