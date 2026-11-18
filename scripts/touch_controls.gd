@@ -1,6 +1,6 @@
 extends Control
 ## Two independent line sticks: generous rectangular hit areas match visible travel.
-const RADIUS = 90.0
+const RADIUS = 140.0
 var safe_bounds = Rect2()
 var left_id = -1
 var right_id = -1
@@ -16,15 +16,15 @@ func bounds() -> Rect2:
 	return safe_bounds if safe_bounds.size.x > 0 else Rect2(Vector2.ZERO, size)
 
 func travel() -> float:
-	return clampf(bounds().size.y * 0.145, 64, 100)
+	return clampf(bounds().size.y * 0.21, 88, 150)
 
 func left_center() -> Vector2:
 	var area = bounds()
-	return Vector2(area.position.x + minf(area.size.x * 0.17, 180), area.end.y - travel() - 36)
+	return Vector2(area.position.x + minf(area.size.x * 0.17, 220), area.end.y - travel() - 36)
 
 func right_center() -> Vector2:
 	var area = bounds()
-	return Vector2(area.end.x - minf(area.size.x * 0.17, 180), area.end.y - travel() - 36)
+	return Vector2(area.end.x - minf(area.size.x * 0.17, 220), area.end.y - travel() - 36)
 
 func command() -> Vector4:
 	return Vector4(roll, pitch, yaw, throttle)
@@ -103,8 +103,8 @@ func _draw():
 				draw_line(at - cross * 4, at + cross * 4, Color(light, 0.8), 1.4, true)
 		var marker = center + axis * t
 		draw_line(center, marker, Color(light, 0.65), 2.0, true)
-		draw_circle(marker, 9, ink)
-		draw_circle(marker, 5, light)
+		draw_circle(marker, 11, ink)
+		draw_circle(marker, 7, light)
 		draw_circle(marker, 2, Color.WHITE)
 		var caption = "POWER / YAW" if pad == 0 else "PITCH / BANK"
 		var font = ThemeDB.fallback_font

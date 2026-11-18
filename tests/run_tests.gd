@@ -177,12 +177,26 @@ func run():
 	model.reset(2)
 	var coasting = model.velocity
 	for n in range(120):
-		model.step(Vector4(0.5, 0, 0, 0), 1.0 / 120, 6)
-	check(model.velocity == coasting and model.position.y == 45, "spacecraft coasts without wing lift, bank turning, wind or gravity")
+		model.step(Vector4(0.5, 0, 0, 0.35), 1.0 / 120, 6)
+	check(model.velocity == coasting and model.position.y == 45, "spacecraft holds cruise without wing lift, bank turning, wind or gravity")
 	model.reset(2)
 	for n in range(120):
 		model.step(Vector4(0, 0, 0, 1), 1.0 / 120)
 	check(model.speed > 40, "spacecraft thrust accelerates along its facing direction")
+	model.reset(2)
+	for n in range(240): model.step(Vector4.ZERO, 1.0 / 120)
+	check(model.speed < 5 and model.position.y == 45, "spacecraft low throttle engages assisted deceleration without gravity")
+	for kind in range(2):
+		var accelerated = Flight.new()
+		var slowed = Flight.new()
+		accelerated.reset(kind)
+		slowed.reset(kind)
+		var initial = accelerated.speed
+		for n in range(240):
+			accelerated.step(Vector4(0, 0, 0, 1), 1.0 / 120)
+			slowed.step(Vector4.ZERO, 1.0 / 120)
+		check(accelerated.speed > initial + 3 and slowed.speed < initial - 2, "aircraft %d throttle clearly accelerates and decelerates over two seconds" % kind)
+		check(accelerated.longitudinal_acceleration > 0 and slowed.longitudinal_acceleration < 0, "aircraft %d HUD acceleration sign follows actual speed change" % kind)
 	var coarse = Flight.new()
 	var fine = Flight.new()
 	coarse.reset(0)
@@ -216,6 +230,31 @@ func run():
 				course.update_hazards(0.5)
 				check(course.hazards[0].mesh.position != moving, "debris advances with simulation clock")
 				check(course.debris_collision(course.hazards[0].mesh.position), "debris impact detected")
+	# Many seeds exercise route families without allocating terrain meshes per sample.
+	var patterns = {}
+	var fingerprints = {}
+	var bounded_routes = true
+	for seed_value in range(1, 251):
+		for world in range(3):
+			for tier in range(3):
+				var generated = Course.generate_route(world, tier, seed_value)
+				var points: Array = generated.gates
+				patterns[generated.pattern] = true
+				fingerprints[points.hash()] = true
+				bounded_routes = bounded_routes and points.size() == Course.GATE_COUNT
+				for i in range(points.size()):
+					bounded_routes = bounded_routes and absf(points[i].x) < 65 and points[i].y - Course.ground_height(points[i].x, points[i].z) >= 23.99
+					if i > 0:
+						var delta: Vector3 = points[i] - points[i - 1]
+						bounded_routes = bounded_routes and absf(delta.x) <= 13.01 + tier * 4 and absf(delta.y) <= 7.01 + tier * 2 and delta.z <= -97.99 and delta.z >= -126.01
+	check(bounded_routes, "2250 seeded route configurations keep gate count, turn/climb limits and terrain clearance")
+	check(patterns.size() == Course.PATTERNS.size() and fingerprints.size() > 600, "random routes cover all five families with varied geometry")
+	check(Course.generate_route(1, 2, 12345).gates == Course.generate_route(1, 2, 12345).gates, "same route seed exactly reproduces gate coordinates")
+	for seed_value in [7, 42, 12345]:
+		course.build(1, 2, seed_value)
+		var gates_clear = true
+		for gate in course.gates: gates_clear = gates_clear and not course.collision(gate)
+		check(gates_clear, "seed %d generated gate planes clear pylons and moving debris" % seed_value)
 	course.queue_free()
 	var store = Store.new()
 	check(store.audio_volume() == 0.45, "legacy profile uses balanced sound without migration")
@@ -230,24 +269,27 @@ func run():
 	check(store.set_audio_volume(0) and store.audio_volume() == 0, "mute preference persists")
 	var sound = FlightAudio.new()
 	root.add_child(sound)
-	check(sound.engines.size() == 3 and sound.cues.size() == 4, "three original engine loops and four flight cues generated")
-	for wave in sound.engines + sound.cues.values():
-		var bounded = true
-		for sample in range(0, wave.data.size(), 2):
-			bounded = bounded and abs(wave.data.decode_s16(sample)) < 11000
-		check(bounded and wave.mix_rate == 22050 and wave.data.size() > 0, "generated PCM stays within mix headroom")
+	check(sound.engines.size() == 3 and sound.cues.size() == 4 and sound.tracks.size() == 3, "credited sampled engines, event cues and three stage music tracks load")
+	for stream in sound.engines + sound.cues.values() + sound.tracks:
+		check(stream is AudioStreamOggVorbis and stream.get_length() > 0.1, "bundled Ogg resource decodes with positive duration")
 	sound.set_flying(true)
 	sound.update_engine(0, 0, 0, 1)
+	sound._process(0)
+	await process_frame
 	var idle_pitch: float = sound.engine.pitch_scale
 	sound.update_engine(1, 1, 0, 1)
+	sound._process(0)
 	check(sound.engine.playing and sound.engine.pitch_scale > idle_pitch, "engine responds to thrust and speed")
 	sound.play_cue("pass")
 	sound._process(0)
-	check(sound.feedback.playing, "gate pass produces audible feedback")
+	check(sound.feedback.playing, "gate pass starts sampled audio feedback")
+	check(sound.music.playing, "flight starts orchestral stage music")
 	sound.set_volume(0)
-	check(not sound.engine.playing and not sound.feedback.playing, "mute immediately stops engine and cues")
+	check(not sound.engine.playing and not sound.feedback.playing and not sound.music.playing, "mute immediately stops engine and cues")
 	sound.set_volume(0.45)
 	sound.update_engine(0.5, 0.5, 2, 1)
+	sound._process(0)
+	await process_frame
 	check(sound.engine.playing and sound.engine.stream == sound.engines[2], "unmuting active flight resumes correct craft engine")
 	sound.play_cue("pass")
 	sound.play_cue("miss")
@@ -263,7 +305,10 @@ func run():
 	sound.set_flying(false)
 	sound.set_volume(1)
 	sound.update_engine(1, 1, 0, 1)
+	sound._process(0)
 	check(not sound.engine.playing and not sound.feedback.playing, "volume changes never restart paused flight audio")
+	sound.start_session(2)
+	check(sound.current_stage == 2 and sound.music.stream == sound.tracks[2] and not sound.music.playing, "next stage selects its own music without paused playback")
 	sound.queue_free()
 	check(store._valid({"schema": 1, "controllers": {}, "records": {}}), "profile schema accepted")
 	check(not store._valid({"schema": 1, "controllers": [], "records": {}}), "corrupt profile shape rejected")
@@ -294,7 +339,15 @@ func run():
 	check(game.state == "FLYING", "keyboard launch starts training")
 	game.audio.set_volume(0.45)
 	game._process(0.02)
+	game.audio._process(0)
+	await process_frame
 	check(game.audio.engine.playing, "game flight starts engine audio")
+	var replay_seed = game.route_seed
+	var replay_gates = game.course.gates.duplicate()
+	game.start_run(false)
+	check(game.route_seed == replay_seed and game.course.gates == replay_gates, "retry keeps route seed and exact gate layout")
+	game.start_run(true)
+	check(game.route_seed != replay_seed and game.course.gates != replay_gates, "new route changes seed and track geometry")
 	game.pause_run("test")
 	check(not game.audio.engine.playing, "game pause stops engine immediately")
 	var paused_position: Vector3 = game.flight.position
@@ -346,6 +399,12 @@ func run():
 		for option in layout.ui.find_children("*", "OptionButton", true, false):
 			bounded_choices = bounded_choices and option.size.y >= 48 and option.size.y <= 64
 		check(readable and bounded_choices, "canvas %s menu keeps readable text and bounded selectors" % dimensions)
+		var sticks = layout.touch_controls
+		var hit_size = Vector2.ONE * (sticks.travel() + 24) * 2
+		var left_hit = Rect2(sticks.left_center() - hit_size * 0.5, hit_size)
+		var right_hit = Rect2(sticks.right_center() - hit_size * 0.5, hit_size)
+		var panel = layout.hud.instrument_rect()
+		check(not panel.intersects(left_hit) and not panel.intersects(right_hit) and not left_hit.intersects(right_hit), "canvas %s enlarged sticks clear central flight instruments" % dimensions)
 		layout.start_run()
 		layout._process(0.01)
 		await process_frame
@@ -356,6 +415,8 @@ func run():
 		layout.refresh_layout()
 		check(not layout.hud.visible and layout.profile.data.records[layout.record_key(layout.stage)].attempts == attempts, "canvas %s debrief hides HUD and resizing does not save another attempt" % dimensions)
 		viewport.queue_free()
+		layout.audio._process(0)
+		check(layout.audio.pending_cue.is_empty() and not layout.audio.feedback.playing and not layout.audio.music.playing, "queued scene removal cancels native cue/music dispatch")
 		await process_frame
 	game.queue_free()
 	await process_frame

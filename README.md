@@ -2,7 +2,7 @@
 
 **A small world. A sharper pilot.** An offline Windows flight-skills game for USB radio controllers, with original procedural polygon art.
 
-**0.1.0-rc.6 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is a flight-skills game, not a certified simulator or proof of real flight proficiency.
+**0.1.0-rc.7 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is a flight-skills game, not a certified simulator or proof of real flight proficiency.
 
 ## Play
 
@@ -23,13 +23,13 @@
 
 **Keyboard is the default input mode**; no radio is needed. If a radio was selected, choose Keyboard practice in Controller setup. WASD and arrows may be mixed; opposite directions cancel and duplicate direction keys do not increase input. Arrow left/right now bank; rudder has moved to Z/C.
 
-Trainer and jet use lift, drag, thrust and gravity: ailerons command roll rate, elevator changes angle of attack, banking reduces vertical lift and low power leads to a glide. Kestrel has stronger stability and a faster propeller response; Peregrine rolls faster, has higher wing loading and a slower turbine spool. Nomad uses thruster acceleration and coasts at zero power, without wing lift or bank-to-turn coupling. These are original reduced-order models, not the Aerofly RC8 physics engine; no real-aircraft fidelity is claimed. Missed gates do not end a run. Terrain contact, airspace limits (±145 m lateral / 180 m altitude), or 180 seconds end the session. No commands are sent to physical equipment.
+Trainer and jet use lift, drag, thrust and gravity: ailerons command roll rate, elevator changes angle of attack, banking reduces vertical lift and low power leads to a glide. Kestrel has stronger stability and a faster propeller response; Peregrine rolls faster, has higher wing loading and a slower turbine spool. Nomad uses assisted thruster cruise: raising power accelerates, reducing power applies reverse-thruster braking, and 35% maintains its initial cruise speed. It has no wing lift, gravity or bank-to-turn coupling. These are original reduced-order models, not the Aerofly RC8 physics engine; no real-aircraft fidelity is claimed. Missed gates do not end a run. Terrain contact, airspace limits (±145 m lateral / 180 m altitude), or 180 seconds end the session. No commands are sent to physical equipment.
 
 **Device/focus loss freezes flight.** Reconnect the same radio, center controls, lower throttle, explicitly resume. No automatic keyboard takeover. If the transient device ID changes, return to hangar and explicitly select the radio again. Identical devices may share a profile; validate each separately.
 
 ## Staged training (rc.3)
 
-Choose **Foundations** (wide gates), **Crosswind** (narrower gates and increased drift), or **Debris Run** (tight gates and moving polygon debris). Score at least **55/100** in Foundations to unlock Crosswind; score **65/100** in Crosswind to unlock Debris Run, separately for each planet/craft. An existing rc.2 flight log is retained: its original record key counts as Foundations. All stages keep 16 gates and the same 180-second limit. A light HUD target marker, attitude line, streak counter, progress strip, and animated engine flare support look-ahead without adding menus while flying. Scores are heuristic practice feedback, not real-flight certification.
+Choose **Foundations** (wide gates), **Crosswind** (narrower gates and increased drift), or **Debris Run** (tight gates and moving polygon debris). Score at least **55/100** in Foundations to unlock Crosswind; score **65/100** in Crosswind to unlock Debris Run, separately for each planet/craft. An existing rc.2 flight log is retained: its original record key counts as Foundations. All stages keep 16 gates and the same 180-second limit. Each new flight chooses a seeded route from Weave, Long Arcs, Climb Run, Chicane or Rolling Hills, with varying gate spacing/elevation and scenery/debris. **Retry route** preserves that seed and obstacle layout; **New route** reshuffles. Debrief shows the route name and seed. A light HUD target marker, attitude line, streak counter, progress strip, and animated engine flare support look-ahead without adding menus while flying. Scores are heuristic practice feedback, not real-flight certification.
 
 ## Android test APK (rc.4)
 
@@ -41,11 +41,13 @@ This is a **debug-signed test APK**, not a Play Store or stable build. The CI te
 
 The scene fills landscape displays, including wide phones, without fixed-aspect side bars. Menus use short labels and bounded selectors; the HUD uses two horizontal readouts and disappears on pause/results. Windows launches fullscreen; F11 toggles windowed mode. Android retains immersive landscape mode and uses display-safe margins.
 
-Touch sticks use transparent graduated cross-lines with small position lights, based on the TeleRC Go line style. The visible endpoints map to full input. Power holds on release; the other axes center. A fresh run resets power to 35%; app focus loss clears gesture ownership. Optional **Controls** contains the short guide.
+Touch sticks use larger transparent graduated cross-lines with small position lights, based on the TeleRC Go line style. The lower-center flight HUD shows compass heading, bank/pitch attitude, speed, altitude, power, vertical speed and measured acceleration. Aircraft thrust above cruise and idle drag make power changes more pronounced; the jet still spools more slowly than the trainer. The visible endpoints map to full input. Power holds on release; the other axes center. A fresh run resets power to 35%; app focus loss clears gesture ownership. Optional **Controls** contains the short guide.
 
-## Flight sound (rc.5)
+## Adventure audio (rc.7)
 
-Each craft has an original synthesized engine loop whose pitch follows throttle and airspeed. Short tones signal gate passes, misses, course completion and failed runs. Choose **Muted**, **Quiet**, **Balanced** (default), **Loud** or **Full** in the hangar or pause panel; the preference saves locally. Pausing, losing app focus or disconnecting the selected radio stops flight audio immediately. Returning focus does not resume it. There are no audio downloads or music tracks.
+Generic oscillator tones have been replaced by **Kenney Sci-fi Sounds** sampled engines and effects (CC0), plus **Leonardo Paz's Outer Space Music Pack** (CC BY 4.0). Foundations uses *Lift Off A*, Crosswind uses *Racing Through Asteroids*, and Debris Run uses *Battle in Outer Space*. Audio is bundled offline. **Audio credits** in the hangar lists authors, sources and licenses; source checks pin every Ogg file by SHA256. Credits/license inventory also ships in the Windows ZIP and both game packages.
+
+Sound presets include mute and persist locally. Pause/focus/device loss silences all three voices; orchestral music resumes at its retained playback position. A new flight/stage starts its track from the beginning. Engine pitch and level follow throttle/speed, and feedback has a separate bounded voice. Queued scene removal cancels pending playback.
 
 ## Compatibility and storage
 

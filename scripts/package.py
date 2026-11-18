@@ -28,6 +28,8 @@ with zipfile.ZipFile(artifact, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.write(path, path.name)
     for path in (root / 'docs').glob('*.md'):
         archive.write(path, f'docs/{path.name}')
+    for name in ['CREDITS.txt', 'KENNEY_LICENSE.txt', 'manifest.json']:
+        archive.write(root / 'assets/audio' / name, 'audio/' + name)
     archive.write(root / 'scripts/windows_hil.ps1', 'scripts/windows_hil.ps1')
     archive.writestr('BUILD_INFO.json', json.dumps(info, indent=2))
     checksums = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [exe, pck]}

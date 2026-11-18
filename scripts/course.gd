@@ -12,6 +12,9 @@ const STAGES = [
 	{"name": "CROSSWIND", "subtitle": "Anticipate drift", "brief": "Narrower gates, stronger drift and sharper changes of elevation.", "radius": 9.0},
 	{"name": "DEBRIS RUN", "subtitle": "Precision under pressure", "brief": "Tight gates, moving polygon debris and demanding route geometry.", "radius": 8.0}
 ]
+const PATTERNS = ["Weave", "Long arcs", "Climb run", "Chicane", "Rolling hills"]
+var route_seed = 0
+var pattern = 0
 var stage = 0
 var elapsed = 0.0
 var hazards: Array[Dictionary] = []
@@ -31,10 +34,40 @@ var root: Node3D
 static func ground_height(x: float, z: float) -> float:
 	return -1.0 + sin(z * 0.012) * 5.0 + maxf(0, absf(x) - 55.0) * 0.34
 
-func build(kind: int, tier: int = 0):
+# Independent route RNG makes a displayed seed reproducible across scenery rebuilds.
+static func generate_route(kind: int, tier: int, seed_value: int) -> Dictionary:
+	var rng = RandomNumberGenerator.new()
+	rng.seed = seed_value if seed_value != 0 else 501 + kind + tier * 100
+	var family = rng.randi_range(0, PATTERNS.size() - 1)
+	var phase = rng.randf_range(-PI, PI) + kind * 0.35
+	var amplitude = rng.randf_range(22, 36) + tier * 5 + kind * 3
+	var cadence = [0.65, 0.29, 0.43, 1.05, 0.48][family]
+	var points: Array[Vector3] = []
+	var previous = Vector3(0, 45, -75)
+	for i in range(GATE_COUNT):
+		var x = sin(phase + i * cadence) * amplitude + rng.randf_range(-4, 4)
+		var y = 45 + sin(i * 0.65 + phase) * (10 + tier * 3)
+		if family == 2:
+			y = 42 + sin(float(i) / (GATE_COUNT - 1) * PI) * (24 + tier * 3)
+		elif family == 4:
+			y = 48 + sin(i * 0.33 + phase) * 20
+		var step_x = 13.0 + tier * 4
+		var step_y = 7.0 + tier * 2
+		var point = Vector3(move_toward(previous.x, x, step_x), move_toward(previous.y, y, step_y), previous.z - rng.randf_range(98, 126))
+		if i == 0:
+			point = Vector3(rng.randf_range(-4, 4), rng.randf_range(43, 47), -75)
+		point.y = maxf(point.y, ground_height(point.x, point.z) + 24)
+		points.append(point)
+		previous = point
+	return {"seed": rng.seed, "pattern": family, "gates": points}
+
+func build(kind: int, tier: int = 0, seed_value: int = 0):
 	planet = clampi(kind, 0, 2)
 	stage = clampi(tier, 0, STAGES.size() - 1)
 	elapsed = 0.0
+	var route = generate_route(planet, stage, seed_value)
+	route_seed = route.seed
+	pattern = route.pattern
 	hazards.clear()
 	for child in get_children():
 		child.queue_free()
@@ -47,7 +80,7 @@ func build(kind: int, tier: int = 0):
 	var terrain = SurfaceTool.new()
 	terrain.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rng = RandomNumberGenerator.new()
-	rng.seed = 501 + planet
+	rng.seed = route_seed + 7919
 	for zi in range(82):
 		for xi in range(16):
 			var x = -240.0 + xi * 30
@@ -66,7 +99,7 @@ func build(kind: int, tier: int = 0):
 	land.material_override = land_material
 	root.add_child(land)
 	for i in range(GATE_COUNT):
-		var gate = Vector3(sin(i * (0.72 + stage * 0.03)) * (22.0 + planet * 4.0 + stage * 4.0), 42.0 + sin(i * 0.81 + stage * 0.15) * (15.0 + stage * 3.0), -75.0 - i * 105.0)
+		var gate: Vector3 = route.gates[i]
 		gates.append(gate)
 		var ring = MeshInstance3D.new()
 		ring.mesh = ring_mesh(gate_radius(), 0.6, 24)
@@ -97,22 +130,22 @@ func build(kind: int, tier: int = 0):
 			mountain.material_override = material(palette.rock.lightened(0.15))
 			root.add_child(mountain)
 
-	# Stage-three hazards are seeded by the fixed route, so every retry is learnable.
+	# Stage-three hazards share the route seed, so a retry keeps its obstacles.
 	# Debris never spawns inside the gate plane; the pilot has room to anticipate it.
 	if stage == 2:
 		for i in range(GATE_COUNT - 1):
 			var middle: Vector3 = gates[i].lerp(gates[i + 1], 0.5)
 			var debris = MeshInstance3D.new()
 			var shape = SphereMesh.new()
-			shape.radius = 4.5
-			shape.height = 9.0
+			shape.radius = rng.randf_range(3.8, 5.2)
+			shape.height = shape.radius * 2
 			shape.radial_segments = 7
 			shape.rings = 3
 			debris.mesh = shape
 			debris.material_override = material(palette.rock.lightened(0.32))
 			root.add_child(debris)
 			var center = middle + Vector3(12.0 if i % 2 == 0 else -12.0, 2.5, 0)
-			var obstacle = {"mesh": debris, "center": center, "phase": float(i) * 1.9, "radius": 4.5}
+			var obstacle = {"mesh": debris, "center": center, "phase": rng.randf_range(0, TAU), "radius": shape.radius, "frequency": rng.randf_range(0.65, 0.95), "sweep": rng.randf_range(8, 12)}
 			hazards.append(obstacle)
 		update_hazards(0.0)
 
@@ -123,7 +156,7 @@ func update_hazards(dt: float):
 	for hazard in hazards:
 		var debris: MeshInstance3D = hazard.mesh
 		var center: Vector3 = hazard.center
-		debris.position = center + Vector3(sin(elapsed * 0.8 + hazard.phase) * 10.0, cos(elapsed * 0.65 + hazard.phase) * 2.5, 0)
+		debris.position = center + Vector3(sin(elapsed * hazard.frequency + hazard.phase) * hazard.sweep, cos(elapsed * 0.65 + hazard.phase) * 2.5, 0)
 		debris.rotation.y = elapsed * 0.22 + hazard.phase
 
 func debris_collision(position: Vector3) -> bool:

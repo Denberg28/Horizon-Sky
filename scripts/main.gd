@@ -6,7 +6,7 @@ const Course = preload("res://scripts/course.gd")
 const HUD = preload("res://scripts/hud.gd")
 const TouchControls = preload("res://scripts/touch_controls.gd")
 const FlightAudio = preload("res://scripts/flight_audio.gd")
-const VERSION = "0.1.0-rc.6"
+const VERSION = "0.1.0-rc.7"
 const INK = Color("101e2c")
 const MINT = Color("b4ffcc")
 var flight = FlightModel.new()
@@ -35,6 +35,8 @@ var state = "MENU"
 var planet = 0
 var vehicle = 0
 var stage = 0
+var route_seed = 0
+var credits_open = false
 var streak = 0
 var best_streak = 0
 var next_gate = 0
@@ -93,7 +95,7 @@ func build_world():
 	add_child(light)
 	course = Course.new()
 	add_child(course)
-	course.build(planet, stage)
+	course.build(planet, stage, route_seed)
 	craft = Node3D.new()
 	add_child(craft)
 	build_craft()
@@ -227,6 +229,7 @@ func sync_flight_state():
 
 func clear_overlay():
 	calibration_open = false
+	credits_open = false
 	for child in overlay.get_children():
 		overlay.remove_child(child)
 		child.queue_free()
@@ -329,6 +332,7 @@ func safe_rect() -> Rect2:
 
 func layout_hud():
 	var safe = safe_rect()
+	hud.safe_bounds = safe
 	telemetry_back.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	telemetry_back.position = safe.position
 	telemetry_back.size = Vector2(safe.size.x, 84)
@@ -357,6 +361,8 @@ func refresh_layout():
 	if state == "MENU":
 		if calibration_open:
 			show_calibration()
+		elif credits_open:
+			show_credits()
 		else:
 			show_menu()
 	elif state == "PAUSED":
@@ -413,11 +419,12 @@ func show_menu():
 	stage_select.item_selected.connect(func(i):
 		if i < unlocked_stage_count():
 			stage = i
-			course.build(planet, stage))
+			course.build(planet, stage, route_seed))
 	var launch = button(col, "FLY", start_run)
 	launch.custom_minimum_size.y = 56
 	button(col, "Controls" if radio.touch_mode else "Controls · " + ("Keyboard" if radio.keyboard else "USB radio"), show_calibration)
 	sound_control(col)
+	button(col, "Audio credits", show_credits)
 	if not profile.warning.is_empty():
 		text(col, profile.warning, 16, Color("ffbe91"))
 	text(col, "TEST BUILD · " + VERSION, 14, Color("8ca4b1"))
@@ -430,10 +437,27 @@ func show_menu():
 			var score = float(record.get("best", 0))
 			var status = "Locked" if i >= unlocked_stage_count() else "%.0f / 100" % score
 			text(info, "%d  %s · %s" % [i + 1, ["Foundations", "Crosswind", "Debris"][i], status], 18)
-	course.build(planet, stage)
+	course.build(planet, stage, route_seed)
 	flight.reset(vehicle)
 	update_palette()
 	update_camera(1.0)
+
+func show_credits():
+	state = "MENU"
+	sync_flight_state()
+	clear_overlay()
+	credits_open = true
+	var safe = safe_rect()
+	var width = minf(760, safe.size.x)
+	var col = panel(overlay, Rect2(safe.get_center().x - width * 0.5, safe.position.y, width, safe.size.y), 0.97, true)
+	text(col, "AUDIO CREDITS", 28, MINT)
+	text(col, "Sci-fi Sounds · Kenney", 24)
+	text(col, "CC0 1.0 · kenney.nl/assets/sci-fi-sounds\ncreativecommons.org/publicdomain/zero/1.0/", 18)
+	text(col, "Outer Space Music Pack · Leonardo Paz", 24)
+	text(col, "Lift Off A · Racing Through Asteroids · Battle in Outer Space", 18)
+	text(col, "CC BY 4.0 · creativecommons.org/licenses/by/4.0/\nopengameart.org/content/outer-space-music-pack", 18)
+	text(col, "Original audio files unchanged; runtime mixing, pitch and looping. No artist endorsement implied.", 16)
+	button(col, "Hangar", show_menu)
 
 func authority_name() -> String:
 	if radio.touch_mode:
@@ -543,13 +567,17 @@ func save_calibration():
 	profile.data.controllers[radio.signature] = radio.mapping.duplicate(true)
 	config_status.text = "Calibration saved. Lower throttle; confirm directions." if profile.save_profile() else profile.warning
 
-func start_run():
+func start_run(new_route: bool = true):
 	if stage >= unlocked_stage_count():
 		stage = 0
 	if not radio.ready_to_fly():
 		show_calibration()
 		config_status.text = "Before launch: connect, calibrate, center roll/pitch/yaw, and lower throttle."
 		return
+	if new_route or route_seed == 0:
+		var next_seed = randi_range(1, 2147483647)
+		route_seed = next_seed if next_seed != route_seed else (next_seed % 2147483646) + 1
+	audio.start_session(stage)
 	flight.reset(vehicle)
 	radio.throttle = 0.35
 	touch_controls.reset_for_run()
@@ -564,7 +592,7 @@ func start_run():
 	last_command = Vector4.ZERO
 	message = "STAGE %d · %s" % [stage + 1, Course.STAGES[stage].name]
 	message_time = 5
-	course.build(planet, stage)
+	course.build(planet, stage, route_seed)
 	update_palette()
 	state = "FLYING"
 	recovering = false
@@ -588,7 +616,7 @@ func pause_run(reason: String):
 	text(col, reason, 18)
 
 	button(col, "Resume", resume_run)
-	button(col, "Restart", start_run)
+	button(col, "Retry route", func(): start_run(false))
 	sound_control(col)
 	button(col, "Hangar", show_menu)
 
@@ -613,7 +641,7 @@ func finish_run(reason: String, completed: bool):
 	var score = clampf(hits / float(Course.GATE_COUNT) * 65 + precision * 0.25 + smoothness * 0.1, 0, 100)
 	if not completed:
 		score *= 0.5
-	last_result = {"score": snappedf(score, 0.1), "hits": hits, "precision": snappedf(precision, 0.1), "seconds": snappedf(flight.time, 0.1), "clearance": snappedf(minimum_clearance, 0.1), "smoothness": snappedf(smoothness, 0.1), "completed": completed, "stage": stage + 1, "streak": best_streak, "reason": reason.get_slice(".", 0)}
+	last_result = {"score": snappedf(score, 0.1), "hits": hits, "precision": snappedf(precision, 0.1), "seconds": snappedf(flight.time, 0.1), "clearance": snappedf(minimum_clearance, 0.1), "smoothness": snappedf(smoothness, 0.1), "completed": completed, "stage": stage + 1, "streak": best_streak, "reason": reason.get_slice(".", 0), "route_seed": route_seed, "route_pattern": Course.PATTERNS[course.pattern]}
 	profile.record(record_key(stage), last_result)
 	show_debrief()
 
@@ -625,6 +653,7 @@ func show_debrief():
 	text(col, "STAGE %02d · RESULT" % (stage + 1), 18, MINT)
 	text(col, "%.0f / 100" % last_result.score, 44)
 	text(col, str(last_result.get("reason", "Flight ended")), 22)
+	text(col, str(last_result.get("route_pattern", "Route")) + " · #" + str(last_result.get("route_seed", 0)), 16, MINT)
 	text(col, "%d / %d gates · %.1f s" % [last_result.hits, Course.GATE_COUNT, last_result.seconds], 24)
 	text(col, "Precision %.0f%% · Smoothness %.0f%%" % [last_result.precision, last_result.smoothness], 20)
 	text(col, "Best streak %d · Clearance %.1f m" % [last_result.streak, last_result.clearance], 20)
@@ -634,7 +663,8 @@ func show_debrief():
 		button(col, "Next stage", func():
 			stage += 1
 			start_run())
-	button(col, "Fly again", start_run)
+	button(col, "Retry route", func(): start_run(false))
+	button(col, "New route", start_run)
 	button(col, "Hangar", show_menu)
 
 func _physics_process(dt: float):
@@ -702,7 +732,12 @@ func _process(dt: float):
 		audio.update_engine(last_command.w, flight.speed / FlightModel.VEHICLES[vehicle].max_speed, vehicle, dt)
 		update_camera(dt)
 		message_time -= dt
-		telemetry.text = "%.0f m/s   ·   ALT %.0f m   ·   POWER %.0f%%" % [flight.speed, flight.position.y, last_command.w * 100]
+		telemetry.text = "%s · %s" % [FlightModel.VEHICLES[vehicle].name, Course.PLANETS[planet].name]
+		hud.airspeed = flight.speed
+		hud.altitude = flight.position.y
+		hud.vertical_speed = flight.velocity.y
+		hud.heading = flight.heading
+		hud.acceleration = flight.longitudinal_acceleration
 		progress_label.text = "GATE %02d / %02d   ·   %d passed   ·   %.0f s" % [mini(next_gate + 1, Course.GATE_COUNT), Course.GATE_COUNT, hits, flight.time]
 		if next_gate < course.gates.size():
 			hud.target_visible = not camera.is_position_behind(course.gates[next_gate])
@@ -727,7 +762,7 @@ func request_quit():
 	state = "EXITING"
 	sync_flight_state()
 	# Retire audio playback before engine teardown, including automated smoke exits.
-	await get_tree().create_timer(0.05).timeout
+	await get_tree().create_timer(0.2).timeout
 	get_tree().quit()
 
 func update_camera(dt: float):
@@ -750,7 +785,7 @@ func _unhandled_key_input(event: InputEvent):
 			pause_run("Ready when you are.")
 		elif state == "PAUSED":
 			resume_run()
-		elif state == "RESULTS" or calibration_open:
+		elif state == "RESULTS" or calibration_open or credits_open:
 			show_menu()
 
 func _notification(what: int):
