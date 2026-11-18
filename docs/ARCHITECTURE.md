@@ -14,6 +14,7 @@ Native Godot Compatibility/OpenGL scene, original geometry, 120 Hz fixed simulat
 | course.gd | Seeded terrain/gates/pylons; analytic ground/cone-envelope contact |
 | profile_store.gd | Schema-validated bounded JSON, temp/readback/backup/replace and recoverable errors |
 | hud.gd | Reticle and Mode-2-style stick monitors; no authority |
+| flight_audio.gd | Three generated PCM engine loops, four event tones, two bounded playback voices; no control authority |
 
 Only one input authority is selected. Missing radio returns zero and main freezes simulation before any further movement. No silent fallback/reconnect resume. Polling current engine state each tick avoids queued app commands. GUID/name guard against unrelated device-slot reuse; identical devices remain indistinguishable. Reselection must validate a saved mapping or calibrate anew.
 
@@ -30,3 +31,5 @@ Schema 1 contains controllers keyed by GUID/name and records keyed by planet/cra
 No network, analytics, arbitrary script loading, shell calls or secrets. CI uses pinned actions, official engine/template checksums, read-only build permissions, and a separate authorized prerelease publication job. No signing continuity exists; candidate is unsigned.
 
 Keyboard map (rc.2): WASD and arrow keys are aliases for pitch/bank; Z/C yaw, Q/E throttle. Each direction ORs aliases before subtracting the opposite direction, keeping output bounded without duplicate-key gain. Physical key positions are used for layout-independent WASD. W/Up push nose down; S/Down pull nose up. Keyboard polling runs only for explicit keyboard authority.
+
+Sound preferences are optional `settings.audio_volume` in schema 1. Missing/invalid preferences default to 0.45 without discarding controller/flight records; finite numeric values clamp to [0,1]. Preset selection writes once per choice, never per frame. Flight audio generates 22,050 Hz mono 16-bit PCM once at startup (three 0.1-second periodic engine buffers and four enveloped cues). Render updates smooth engine pitch; one engine voice and one replaceable cue voice bound playback. Cue events coalesce until render dispatch; pause/mute cancels queued playback. Pause/focus/device loss stops both synchronously. A terminal cue can play in debrief with the engine off; focus loss silences it. No audio assets, runtime downloads or additional dependencies.

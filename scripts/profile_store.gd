@@ -10,6 +10,21 @@ func _init():
 var data: Dictionary = {"schema": 1, "controllers": {}, "records": {}}
 var warning = ""
 
+# Optional settings tolerate older saves and malformed preferences without losing records.
+func audio_volume() -> float:
+	var settings = data.get("settings", {})
+	if settings is Dictionary:
+		var value = settings.get("audio_volume", 0.45)
+		if (value is float or value is int) and is_finite(value):
+			return clampf(value, 0, 1)
+	return 0.45
+
+func set_audio_volume(value: float) -> bool:
+	if not data.get("settings") is Dictionary:
+		data["settings"] = {}
+	data.settings["audio_volume"] = clampf(value, 0, 1) if is_finite(value) else 0.45
+	return save_profile()
+
 func load_profile():
 	if not FileAccess.file_exists(path):
 		return

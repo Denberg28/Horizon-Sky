@@ -5,6 +5,7 @@ const Course = preload("res://scripts/course.gd")
 const Store = preload("res://scripts/profile_store.gd")
 const Main = preload("res://scripts/main.gd")
 const Touch = preload("res://scripts/touch_controls.gd")
+const FlightAudio = preload("res://scripts/flight_audio.gd")
 var failures = 0
 var checks = 0
 
@@ -151,6 +152,53 @@ func run():
 				check(course.debris_collision(course.hazards[0].mesh.position), "debris impact detected")
 	course.queue_free()
 	var store = Store.new()
+	check(store.audio_volume() == 0.45, "legacy profile uses balanced sound without migration")
+	for settings in [null, [], {"audio_volume": "bad"}, {"audio_volume": INF}]:
+		store.data["settings"] = settings
+		check(store.audio_volume() == 0.45, "malformed optional sound setting falls back without losing records")
+	check(store.set_audio_volume(0.2), "sound preference saves")
+	var sound_reload = Store.new()
+	sound_reload.load_profile()
+	check(sound_reload.audio_volume() == 0.2, "sound preference survives disk reload")
+	check(store.set_audio_volume(2) and store.audio_volume() == 1, "sound preference clamps out-of-range values")
+	check(store.set_audio_volume(0) and store.audio_volume() == 0, "mute preference persists")
+	var sound = FlightAudio.new()
+	root.add_child(sound)
+	check(sound.engines.size() == 3 and sound.cues.size() == 4, "three original engine loops and four flight cues generated")
+	for wave in sound.engines + sound.cues.values():
+		var bounded = true
+		for sample in range(0, wave.data.size(), 2):
+			bounded = bounded and abs(wave.data.decode_s16(sample)) < 11000
+		check(bounded and wave.mix_rate == 22050 and wave.data.size() > 0, "generated PCM stays within mix headroom")
+	sound.set_flying(true)
+	sound.update_engine(0, 0, 0, 1)
+	var idle_pitch: float = sound.engine.pitch_scale
+	sound.update_engine(1, 1, 0, 1)
+	check(sound.engine.playing and sound.engine.pitch_scale > idle_pitch, "engine responds to thrust and speed")
+	sound.play_cue("pass")
+	sound._process(0)
+	check(sound.feedback.playing, "gate pass produces audible feedback")
+	sound.set_volume(0)
+	check(not sound.engine.playing and not sound.feedback.playing, "mute immediately stops engine and cues")
+	sound.set_volume(0.45)
+	sound.update_engine(0.5, 0.5, 2, 1)
+	check(sound.engine.playing and sound.engine.stream == sound.engines[2], "unmuting active flight resumes correct craft engine")
+	sound.play_cue("pass")
+	sound.play_cue("miss")
+	check(sound.pending_cue == "miss", "rapid cue events coalesce to the latest feedback")
+	sound.set_flying(false)
+	sound._process(0)
+	check(sound.pending_cue.is_empty() and not sound.feedback.playing, "pause cancels a queued cue before playback")
+	sound.play_cue("pass")
+	check(not sound.engine.playing and not sound.feedback.playing, "paused audio rejects stale gate cues")
+	sound.play_cue("complete")
+	sound._process(0)
+	check(sound.feedback.playing, "debrief can play completion cue with engine stopped")
+	sound.set_flying(false)
+	sound.set_volume(1)
+	sound.update_engine(1, 1, 0, 1)
+	check(not sound.engine.playing and not sound.feedback.playing, "volume changes never restart paused flight audio")
+	sound.queue_free()
 	check(store._valid({"schema": 1, "controllers": {}, "records": {}}), "profile schema accepted")
 	check(not store._valid({"schema": 1, "controllers": [], "records": {}}), "corrupt profile shape rejected")
 	check(not store._valid({"schema": 1, "controllers": {}, "records": {"x": {"best": "bad", "attempts": 1, "last": {}}}}), "malformed nested record rejected")
@@ -178,7 +226,11 @@ func run():
 	game.profile.data.records.clear()
 	game.start_run()
 	check(game.state == "FLYING", "keyboard launch starts training")
+	game.audio.set_volume(0.45)
+	game._process(0.02)
+	check(game.audio.engine.playing, "game flight starts engine audio")
 	game.pause_run("test")
+	check(not game.audio.engine.playing, "game pause stops engine immediately")
 	var paused_position: Vector3 = game.flight.position
 	for n in range(20):
 		game._physics_process(1.0 / 120)
@@ -188,6 +240,7 @@ func run():
 	check(game.state == "FLYING", "explicit keyboard resume succeeds")
 	game._notification(Main.NOTIFICATION_APPLICATION_FOCUS_OUT)
 	check(game.state == "PAUSED", "focus loss pauses flight")
+	check(not game.audio.engine.playing and not game.audio.feedback.playing, "focus loss silences all flight audio")
 	game._notification(Main.NOTIFICATION_APPLICATION_FOCUS_IN)
 	check(game.state == "PAUSED", "focus return never resumes automatically")
 	game.radio.select_radio(99)
@@ -212,6 +265,8 @@ func run():
 	check(game.state == "MENU", "debrief and calibration return to hangar")
 	game.queue_free()
 	await process_frame
+	# Let the audio server retire stopped playback objects before the test process exits.
+	await create_timer(0.05).timeout
 	DirAccess.remove_absolute(store.path)
 	DirAccess.remove_absolute(store.backup)
 	print("RESULT: %d / %d checks passed" % [checks - failures, checks])

@@ -5,12 +5,14 @@ const ProfileStore = preload("res://scripts/profile_store.gd")
 const Course = preload("res://scripts/course.gd")
 const HUD = preload("res://scripts/hud.gd")
 const TouchControls = preload("res://scripts/touch_controls.gd")
-const VERSION = "0.1.0-rc.4"
+const FlightAudio = preload("res://scripts/flight_audio.gd")
+const VERSION = "0.1.0-rc.5"
 const INK = Color("101e2c")
 const MINT = Color("b4ffcc")
 var flight = FlightModel.new()
 var radio = RadioInput.new()
 var profile = ProfileStore.new()
+var audio: Node
 var course: Node3D
 var craft: Node3D
 var engine_flare: MeshInstance3D
@@ -48,9 +50,14 @@ var demo = false
 var capture_path = ""
 var frames = 0
 var exit_after = 0
+var shutting_down = false
 
 func _ready():
+	get_tree().auto_accept_quit = false
 	profile.load_profile()
+	audio = FlightAudio.new()
+	add_child(audio)
+	audio.set_volume(profile.audio_volume())
 	if OS.get_name() == "Android":
 		radio.select_touch()
 	for argument in OS.get_cmdline_user_args():
@@ -189,7 +196,9 @@ func build_ui():
 	mobile_pause.offset_bottom = 92
 	mobile_pause.visible = false
 
-func sync_touch():
+func sync_flight_state():
+	if audio != null:
+		audio.set_flying(state == "FLYING" and focus_ok)
 	if touch_controls == null:
 		return
 	var playing = state == "FLYING" and radio.touch_mode
@@ -256,6 +265,28 @@ func gap(parent: Node, height: float):
 	spacer.custom_minimum_size.y = height
 	parent.add_child(spacer)
 
+# Shared hangar/pause sound control: choices persist on selection, never per frame.
+func sound_control(parent: Node):
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	parent.add_child(row)
+	text(row, "SOUND", 15, MINT)
+	var select = OptionButton.new()
+	var levels = [0.0, 0.2, 0.45, 0.75, 1.0]
+	for title in ["Muted", "Quiet", "Balanced", "Loud", "Full"]:
+		select.add_item(title)
+	var nearest = 0
+	for i in range(levels.size()):
+		if absf(levels[i] - audio.volume) < absf(levels[nearest] - audio.volume):
+			nearest = i
+	select.select(nearest)
+	select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(select)
+	var status = text(parent, "Engine and flight cues", 14, Color("9eb5c0"))
+	select.item_selected.connect(func(i):
+		audio.set_volume(levels[i])
+		status.text = "Sound preference saved" if profile.set_audio_volume(levels[i]) else profile.warning)
+
 func record_key(tier: int) -> String:
 	var base = Course.PLANETS[planet].name + " / " + FlightModel.VEHICLES[vehicle].name
 	return base if tier == 0 else base + " / " + Course.STAGES[tier].name
@@ -270,7 +301,7 @@ func unlocked_stage_count() -> int:
 
 func show_menu():
 	state = "MENU"
-	sync_touch()
+	sync_flight_state()
 	hud.visible = false
 	clear_overlay()
 	var viewport_size = get_viewport().get_visible_rect().size
@@ -320,6 +351,7 @@ func show_menu():
 	text(col, authority_name(), 17)
 	button(col, "Touch control guide" if radio.touch_mode else "Controller setup & calibration", show_calibration)
 	button(col, "BEGIN STAGE  %02d" % (stage + 1), start_run)
+	sound_control(col)
 	text(col, "LEFT: yaw/throttle    RIGHT: bank/pitch    Tap PAUSE to stop." if radio.touch_mode else "WASD / arrows  pitch + bank     Z/C  yaw     Q/E  power\nEsc  pause     F11  fullscreen", 15, Color("9eb5c0"))
 	text(col, "Complete Stage 1 with 55+ to unlock Stage 2; score 65+ in Stage 2 to unlock Stage 3.", 14, Color("9eb5c0"))
 	if not profile.warning.is_empty():
@@ -353,6 +385,7 @@ func show_calibration():
 		show_touch_guide()
 		return
 	state = "MENU"
+	sync_flight_state()
 	hud.visible = false
 	clear_overlay()
 	calibration_open = true
@@ -426,7 +459,7 @@ func show_calibration():
 
 func show_touch_guide():
 	state = "MENU"
-	sync_touch()
+	sync_flight_state()
 	hud.visible = false
 	clear_overlay()
 	var view = get_viewport().get_visible_rect().size
@@ -473,7 +506,7 @@ func start_run():
 	recovering = false
 	clear_overlay()
 	hud.visible = true
-	sync_touch()
+	sync_flight_state()
 	hud.flying = true
 	update_camera(1.0)
 
@@ -481,7 +514,7 @@ func pause_run(reason: String):
 	if state != "FLYING" and state != "PAUSED":
 		return
 	state = "PAUSED"
-	sync_touch()
+	sync_flight_state()
 	clear_overlay()
 	var view = get_viewport().get_visible_rect().size
 	var width = minf(650.0, view.x - 40.0)
@@ -491,6 +524,7 @@ func pause_run(reason: String):
 	text(col, "Flight time and movement are frozen.\nCenter controls and lower throttle before resuming.", 18)
 	button(col, "Resume flight", resume_run)
 	button(col, "Restart course", start_run)
+	sound_control(col)
 	button(col, "Return to hangar", show_menu)
 
 func resume_run():
@@ -501,13 +535,14 @@ func resume_run():
 	recovering = false
 	last_command = Vector4.ZERO
 	clear_overlay()
-	sync_touch()
+	sync_flight_state()
 
 func finish_run(reason: String, completed: bool):
 	if state != "FLYING":
 		return
 	state = "RESULTS"
-	sync_touch()
+	sync_flight_state()
+	audio.play_cue("complete" if completed else "impact")
 	var precision = accuracy_total / Course.GATE_COUNT * 100.0
 	var smoothness = clampf(100 - command_variation / maxf(flight.time, 1.0) * 6, 0, 100)
 	var score = clampf(hits / float(Course.GATE_COUNT) * 65 + precision * 0.25 + smoothness * 0.1, 0, 100)
@@ -577,6 +612,7 @@ func _physics_process(dt: float):
 		else:
 			streak = 0
 		course.mark_gate(next_gate, success)
+		audio.play_cue("pass" if success else "miss")
 		next_gate += 1
 		message = ("CENTERED PASS" if distance < radius * 0.35 else "CLEAN PASS") + "  /  STREAK %d" % streak if success else "GATE MISSED  /  Reset your approach"
 		message_time = 2.0
@@ -600,6 +636,7 @@ func _process(dt: float):
 			var raw = Input.get_joy_axis(radio.device, int(radio.mapping[i].axis)) if not radio.keyboard and radio.connected() else 0.0
 			config_rows[i].text = "%+.2f raw   →   %+.2f output" % [raw, values[i]]
 	if state == "FLYING":
+		audio.update_engine(last_command.w, flight.speed / FlightModel.VEHICLES[vehicle].max_speed, vehicle, dt)
 		update_camera(dt)
 		message_time -= dt
 		telemetry.text = "%s  /  %s       %.0f m/s       ALT %.0f m       THR %.0f%%" % [Course.PLANETS[planet].name, FlightModel.VEHICLES[vehicle].name, flight.speed, flight.position.y, last_command.w * 100]
@@ -618,7 +655,17 @@ func _process(dt: float):
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png(capture_path)
 	if exit_after > 0 and frames >= exit_after:
-		get_tree().quit()
+		request_quit()
+
+func request_quit():
+	if shutting_down:
+		return
+	shutting_down = true
+	state = "EXITING"
+	sync_flight_state()
+	# Retire audio playback before engine teardown, including automated smoke exits.
+	await get_tree().create_timer(0.05).timeout
+	get_tree().quit()
 
 func update_camera(dt: float):
 	craft.position = flight.position + (Vector3(20, 1, -8) if state == "MENU" else Vector3.ZERO)
@@ -644,8 +691,12 @@ func _unhandled_key_input(event: InputEvent):
 			show_menu()
 
 func _notification(what: int):
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		request_quit()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		focus_ok = false
+		if audio != null:
+			audio.set_flying(false)
 		if touch_controls != null:
 			touch_controls.clear_gestures()
 		if state == "FLYING":
