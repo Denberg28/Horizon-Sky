@@ -99,6 +99,7 @@ func run():
 	touch.touch(1, false, Vector2.ZERO)
 	touch.touch(2, false, Vector2.ZERO)
 	check(touch.command().x == 0 and touch.command().y == 0 and touch.command().z == 0 and touch.command().w > 0.5, "release centers axes and preserves throttle")
+	touch.free()
 	radio.select_radio(99)
 	radio.calibrated = true
 	send_key(KEY_RIGHT, true)
