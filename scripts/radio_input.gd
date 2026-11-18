@@ -3,6 +3,8 @@ extends RefCounted
 const CHANNELS = ["Roll", "Pitch", "Yaw", "Throttle"]
 var device = -1
 var keyboard = true
+var touch_mode = false
+var touch_command = Vector4(0, 0, 0, 0.35)
 var mapping: Array = []
 var captured_min: Array = []
 var captured_max: Array = []
@@ -21,7 +23,25 @@ func defaults():
 		mapping.append({"axis": axis, "min": -1.0, "center": 0.0, "max": 1.0, "invert": axis == 1, "deadzone": 0.04})
 	calibrated = false
 
+func select_touch():
+	keyboard = false
+	touch_mode = true
+	device = -1
+	calibrated = false
+	touch_command = Vector4(0, 0, 0, 0.35)
+
+func select_keyboard():
+	keyboard = true
+	touch_mode = false
+	device = -1
+	calibrated = false
+
+func set_touch_command(value: Vector4):
+	if touch_mode and value.is_finite():
+		touch_command = value.clamp(Vector4(-1, -1, -1, 0), Vector4.ONE)
+
 func select_radio(id: int):
+	touch_mode = false
 	keyboard = false
 	device = id
 	guid = Input.get_joy_guid(id) if id in Input.get_connected_joypads() else ""
@@ -29,7 +49,7 @@ func select_radio(id: int):
 	defaults()
 
 func connected() -> bool:
-	return keyboard or (device in Input.get_connected_joypads() and Input.get_joy_guid(device) == guid and guid + ":" + Input.get_joy_name(device) == signature)
+	return touch_mode or keyboard or (device in Input.get_connected_joypads() and Input.get_joy_guid(device) == guid and guid + ":" + Input.get_joy_name(device) == signature)
 
 func valid_mapping(candidate) -> bool:
 	if not candidate is Array or candidate.size() != 4:
@@ -68,6 +88,8 @@ static func normalized(raw: float, m: Dictionary, throttle_axis: bool = false) -
 func read(dt: float) -> Vector4:
 	if not connected():
 		return Vector4.ZERO
+	if touch_mode:
+		return touch_command
 	if keyboard:
 		throttle = clampf(throttle + (float(Input.is_physical_key_pressed(KEY_E)) - float(Input.is_physical_key_pressed(KEY_Q))) * dt * 0.4, 0, 1)
 		# OR aliases before subtracting: duplicate directions never double output;
@@ -113,6 +135,8 @@ func finish_capture() -> bool:
 	return true
 
 func ready_to_fly() -> bool:
+	if touch_mode:
+		return true
 	if keyboard:
 		return true
 	if not connected() or not calibrated or not valid_mapping(mapping):

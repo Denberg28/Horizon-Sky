@@ -4,7 +4,8 @@ const RadioInput = preload("res://scripts/radio_input.gd")
 const ProfileStore = preload("res://scripts/profile_store.gd")
 const Course = preload("res://scripts/course.gd")
 const HUD = preload("res://scripts/hud.gd")
-const VERSION = "0.1.0-rc.3"
+const TouchControls = preload("res://scripts/touch_controls.gd")
+const VERSION = "0.1.0-rc.4"
 const INK = Color("101e2c")
 const MINT = Color("b4ffcc")
 var flight = FlightModel.new()
@@ -18,6 +19,8 @@ var environment: WorldEnvironment
 var ui: Control
 var overlay: Control
 var hud: Control
+var touch_controls: Control
+var mobile_pause: Button
 var telemetry: Label
 var progress_label: Label
 var notice: Label
@@ -48,6 +51,8 @@ var exit_after = 0
 
 func _ready():
 	profile.load_profile()
+	if OS.get_name() == "Android":
+		radio.select_touch()
 	for argument in OS.get_cmdline_user_args():
 		if argument == "--demo":
 			demo = true
@@ -167,9 +172,32 @@ func build_ui():
 	progress_label.position = Vector2(40, 72)
 	notice = text(hud, "", 22, MINT)
 	notice.position = Vector2(40, 118)
+	touch_controls = TouchControls.new()
+	touch_controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	touch_controls.visible = false
+	ui.add_child(touch_controls)
 	overlay = Control.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(overlay)
+	mobile_pause = button(ui, "PAUSE", func(): pause_run("Paused by pilot."))
+	mobile_pause.anchor_left = 1
+	mobile_pause.anchor_right = 1
+	mobile_pause.offset_left = -175
+	mobile_pause.offset_right = -28
+	mobile_pause.offset_top = 34
+	mobile_pause.offset_bottom = 92
+	mobile_pause.visible = false
+
+func sync_touch():
+	if touch_controls == null:
+		return
+	var playing = state == "FLYING" and radio.touch_mode
+	touch_controls.visible = playing
+	mobile_pause.visible = playing
+	if not playing:
+		touch_controls.clear_gestures()
+
 
 func clear_overlay():
 	calibration_open = false
@@ -242,6 +270,7 @@ func unlocked_stage_count() -> int:
 
 func show_menu():
 	state = "MENU"
+	sync_touch()
 	hud.visible = false
 	clear_overlay()
 	var viewport_size = get_viewport().get_visible_rect().size
@@ -289,9 +318,9 @@ func show_menu():
 			course.build(planet, stage))
 	text(col, "04   INPUT AUTHORITY", 14, MINT)
 	text(col, authority_name(), 17)
-	button(col, "Controller setup & calibration", show_calibration)
+	button(col, "Touch control guide" if radio.touch_mode else "Controller setup & calibration", show_calibration)
 	button(col, "BEGIN STAGE  %02d" % (stage + 1), start_run)
-	text(col, "WASD / arrows  pitch + bank     Z/C  yaw     Q/E  power\nEsc  pause     F11  fullscreen", 15, Color("9eb5c0"))
+	text(col, "LEFT: yaw/throttle    RIGHT: bank/pitch    Tap PAUSE to stop." if radio.touch_mode else "WASD / arrows  pitch + bank     Z/C  yaw     Q/E  power\nEsc  pause     F11  fullscreen", 15, Color("9eb5c0"))
 	text(col, "Complete Stage 1 with 55+ to unlock Stage 2; score 65+ in Stage 2 to unlock Stage 3.", 14, Color("9eb5c0"))
 	if not profile.warning.is_empty():
 		text(col, profile.warning, 14, Color("ffbe91"))
@@ -313,11 +342,16 @@ func show_menu():
 	update_camera(1.0)
 
 func authority_name() -> String:
+	if radio.touch_mode:
+		return "Touch / two virtual flight sticks"
 	if radio.keyboard:
 		return "Keyboard practice / WASD or arrow keys"
 	return Input.get_joy_name(radio.device) if radio.connected() else "Radio disconnected — select device again"
 
 func show_calibration():
+	if radio.touch_mode:
+		show_touch_guide()
+		return
 	state = "MENU"
 	hud.visible = false
 	clear_overlay()
@@ -390,6 +424,20 @@ func show_calibration():
 	button(col, "Refresh device list", show_calibration)
 	button(col, "Back to hangar", show_menu)
 
+func show_touch_guide():
+	state = "MENU"
+	sync_touch()
+	hud.visible = false
+	clear_overlay()
+	var view = get_viewport().get_visible_rect().size
+	var width = minf(760.0, view.x - 36.0)
+	var col = panel(overlay, Rect2((view.x - width) * 0.5, 18, width, view.y - 36), 0.96, true)
+	text(col, "TOUCH FLIGHT CONTROLS", 30, MINT)
+	text(col, "LEFT STICK: yaw horizontally and throttle vertically. Throttle remains at the last setting when released.", 20)
+	text(col, "RIGHT STICK: bank horizontally; pitch vertically. Down climbs, up descends. Controls return to neutral on release.", 20)
+	text(col, "Tap PAUSE at the top-right. Leaving the app pauses flight and clears gestures. Resume explicitly.", 18)
+	button(col, "Back to hangar", show_menu)
+
 func save_calibration():
 	if not radio.capturing:
 		config_status.text = "Start a range capture before saving."
@@ -425,6 +473,7 @@ func start_run():
 	recovering = false
 	clear_overlay()
 	hud.visible = true
+	sync_touch()
 	hud.flying = true
 	update_camera(1.0)
 
@@ -432,6 +481,7 @@ func pause_run(reason: String):
 	if state != "FLYING" and state != "PAUSED":
 		return
 	state = "PAUSED"
+	sync_touch()
 	clear_overlay()
 	var view = get_viewport().get_visible_rect().size
 	var width = minf(650.0, view.x - 40.0)
@@ -451,11 +501,13 @@ func resume_run():
 	recovering = false
 	last_command = Vector4.ZERO
 	clear_overlay()
+	sync_touch()
 
 func finish_run(reason: String, completed: bool):
 	if state != "FLYING":
 		return
 	state = "RESULTS"
+	sync_touch()
 	var precision = accuracy_total / Course.GATE_COUNT * 100.0
 	var smoothness = clampf(100 - command_variation / maxf(flight.time, 1.0) * 6, 0, 100)
 	var score = clampf(hits / float(Course.GATE_COUNT) * 65 + precision * 0.25 + smoothness * 0.1, 0, 100)
@@ -494,6 +546,8 @@ func _physics_process(dt: float):
 		recovering = true
 		pause_run("Controller disconnected. No keyboard takeover.")
 		return
+	if radio.touch_mode:
+		radio.set_touch_command(touch_controls.command())
 	var command = radio.read(dt)
 	if demo:
 		# Automated visual smoke only, explicitly enabled by command-line flag.
@@ -592,13 +646,15 @@ func _unhandled_key_input(event: InputEvent):
 func _notification(what: int):
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		focus_ok = false
+		if touch_controls != null:
+			touch_controls.clear_gestures()
 		if state == "FLYING":
 			pause_run("Window lost focus. Resume when ready.")
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		focus_ok = true
 
 func _device_changed(device: int, connected: bool):
-	if not radio.keyboard and device == radio.device and not connected:
+	if not radio.keyboard and not radio.touch_mode and device == radio.device and not connected:
 		radio.capturing = false
 		if state == "FLYING":
 			recovering = true

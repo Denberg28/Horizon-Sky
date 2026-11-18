@@ -31,6 +31,12 @@ Bank causes a turn; level wings do not restore heading. Pitch holds its last ang
 
 Choose **Foundations** (wide gates), **Crosswind** (narrower gates and increased drift), or **Debris Run** (tight gates and moving polygon debris). Score at least **55/100** in Foundations to unlock Crosswind; score **65/100** in Crosswind to unlock Debris Run, separately for each planet/craft. An existing rc.2 flight log is retained: its original record key counts as Foundations. All stages keep 16 gates and the same 180-second limit. A light HUD target marker, attitude line, streak counter, progress strip, and animated engine flare support look-ahead without adding menus while flying. Scores are heuristic practice feedback, not real-flight certification.
 
+## Android test APK (rc.4)
+
+The shared offline Godot game now supports Android ARM64 in landscape orientation. Download the APK from the rc.4 GitHub prerelease and install it through the Android browser/file manager. On-screen touch controls are the supported Android input: left pad for yaw/throttle and right for bank/pitch, with a visible PAUSE button. Throttle holds its setting on release; other axes return to neutral. Loss of app focus pauses the game.
+
+This is a **debug-signed test APK**, not a Play Store or stable build. The CI test signing key is temporary and differs between builds. An Android upgrade may require uninstalling the old test APK, which can erase local saves. Android radio/controller compatibility and real phone performance have not been verified. The Android pilot save is independent of the Windows save.
+
 ## Compatibility and storage
 
 Target: Windows 10/11 x86_64 with OpenGL 3.3 capable graphics, keyboard/mouse, optional USB joystick. Four independent axes must be exposed to Godot's input interface. Detection alone is not compatibility; generic HID radios, firmware modes and axis ordering need controller-lab/HIL verification. Other CPU architectures and non-USB radio transports are outside this candidate.

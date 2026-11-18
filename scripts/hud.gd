@@ -33,7 +33,7 @@ func _draw():
 	draw_rect(Rect2(24, size.y - 18, maxf(1, size.x - 48), 4), dim)
 	draw_rect(Rect2(24, size.y - 18, maxf(0, size.x - 48) * clampf(progress, 0, 1), 4), accent)
 	# Two stick monitors: yaw/throttle on left, roll/pitch on right.
-	if size.x >= 650:
+	if size.x >= 650 and OS.get_name() != "Android":
 		for i in range(2):
 			var center = Vector2(size.x - 175 + i * 96, size.y - 91)
 			draw_rect(Rect2(center - Vector2(33, 33), Vector2(66, 66)), Color(0.03, 0.09, 0.14, 0.48))
