@@ -1,0 +1,71 @@
+name: Android APK test candidate
+on:
+  push:
+    branches: [feature/android-apk-rc4, main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install Godot 4.6.3 and verified export template
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://github.com/godotengine/godot-builds/releases/download/4.6.3-stable
+          curl -fLsS --retry 3 "$base/Godot_v4.6.3-stable_linux.x86_64.zip" -o /tmp/editor.zip
+          curl -fLsS --retry 3 "$base/Godot_v4.6.3-stable_export_templates.tpz" -o /tmp/templates.tpz
+          curl -fLsS --retry 3 "$base/SHA512-SUMS.txt" -o /tmp/sums.txt
+          python3 scripts/verify_downloads.py /tmp/sums.txt /tmp/editor.zip Godot_v4.6.3-stable_linux.x86_64.zip /tmp/templates.tpz Godot_v4.6.3-stable_export_templates.tpz
+          unzip -q /tmp/editor.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.6.3-stable_linux.x86_64 /usr/local/bin/godot
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.6.3.stable"
+          unzip -j /tmp/templates.tpz templates/android_debug.apk -d "$HOME/.local/share/godot/export_templates/4.6.3.stable"
+      - name: Android SDK and disposable debug signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          export JAVA_HOME="${JAVA_HOME_17_X64:-/usr/lib/jvm/java-17-openjdk-amd64}"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" 'platform-tools' 'build-tools;35.0.1' 'platforms;android-35' || true
+          test -f "$ANDROID_HOME/build-tools/35.0.1/apksigner"
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -noprompt -keystore "$HOME/.android/debug.keystore" -alias androiddebugkey -storepass android -keypass android -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 3650
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
+          echo 'GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey' >> "$GITHUB_ENV"
+          echo 'GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android' >> "$GITHUB_ENV"
+      - name: Automated gameplay checks and APK export
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          godot --headless --path . --editor --import --quit 2>&1 | tee /tmp/import.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|ERROR:' /tmp/import.log
+          godot --headless --path . --script tests/run_tests.gd -- --test 2>&1 | tee /tmp/tests.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|ERROR:' /tmp/tests.log
+          python3 scripts/check_source.py
+          python3 scripts/setup_android_editor.py "$JAVA_HOME" "$ANDROID_HOME"
+          godot --headless --path . --export-debug Android build/HorizonSky-Android-arm64-debug.apk 2>&1 | tee /tmp/export.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|ERROR:' /tmp/export.log
+          test -s build/HorizonSky-Android-arm64-debug.apk
+          unzip -tq build/HorizonSky-Android-arm64-debug.apk
+          unzip -Z1 build/HorizonSky-Android-arm64-debug.apk | grep -q 'lib/arm64-v8a/'
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify build/HorizonSky-Android-arm64-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging build/HorizonSky-Android-arm64-debug.apk | tee build/android-package.txt
+          grep -q 'com.diversifyapplied.horizonsky' build/android-package.txt
+          sha256sum build/HorizonSky-Android-arm64-debug.apk > build/ANDROID_SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: horizon-sky-android-apk
+          path: |
+            build/HorizonSky-Android-arm64-debug.apk
+            build/ANDROID_SHA256SUMS.txt
+            build/android-package.txt
+          if-no-files-found: error
+          retention-days: 30
