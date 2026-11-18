@@ -100,6 +100,15 @@ func run():
 	touch.touch(1, false, Vector2.ZERO)
 	touch.touch(2, false, Vector2.ZERO)
 	check(touch.command().x == 0 and touch.command().y == 0 and touch.command().z == 0 and touch.command().w > 0.5, "release centers axes and preserves throttle")
+	touch.reset_for_run()
+	touch.touch(3, true, touch.right_center() + Vector2(touch.travel(), touch.travel()))
+	check(touch.command().x == 1 and touch.command().y == 1, "line endpoints reach full aileron/elevator travel")
+	touch.touch(3, false, Vector2.ZERO)
+	touch.touch(4, true, touch.left_center() - Vector2(0, touch.travel()))
+	check(touch.command().w == 1, "top of power line reaches full throttle")
+	touch.clear_gestures()
+	touch.reset_for_run()
+	check(touch.command() == Vector4(0, 0, 0, 0.35), "new flight resets held power and clears all gesture ownership")
 	touch.free()
 	radio.select_radio(99)
 	radio.calibrated = true
@@ -109,7 +118,7 @@ func run():
 	var model = Flight.new()
 	model.reset(0)
 	for n in range(120):
-		model.step(Vector4(0, 0, 0, 0.5), 1.0 / 120)
+		model.step(Vector4(0, 0, 0, 0.35), 1.0 / 120)
 	check(model.position.z < 0 and absf(model.position.x) < 0.01 and is_equal_approx(model.position.y, 45), "neutral flight tracks straight and level")
 	model.reset(0)
 	for n in range(240):
@@ -123,7 +132,64 @@ func run():
 		model.reset(kind)
 		for n in range(12000):
 			model.step(Vector4(sin(n * 0.01), cos(n * 0.02), sin(n * 0.03), 0.7), 1.0 / 120)
-		check(model.position.is_finite() and absf(model.pitch) <= 0.65 and model.speed <= Flight.VEHICLES[kind].max_speed, "vehicle %d bounded 100-second soak" % kind)
+		check(model.position.is_finite() and absf(model.pitch) <= 1.301 and model.speed <= Flight.VEHICLES[kind].max_speed + 0.001, "vehicle %d bounded 100-second soak" % kind)
+	# Force-model regressions: energy, stall, bank and distinct vehicle response.
+	for kind in range(2):
+		model.reset(kind)
+		var cruise = model.speed
+		for n in range(720):
+			model.step(Vector4(0, 0, 0, 0), 1.0 / 120)
+		check(model.speed < cruise - 2 and model.position.y < 43, "aircraft %d power-off loses energy and glides" % kind)
+		model.reset(kind)
+		model.velocity = Vector3(0, 0, -4)
+		model.step(Vector4.ZERO, 1.0 / 120)
+		check(model.stalled and model.velocity.y < 0 and model.speed < 5, "aircraft %d low airspeed loses lift without a speed floor" % kind)
+		model.reset(kind)
+		model.pitch = 0.1
+		model.step(Vector4(0, 0, 0, 0.35), 1.0 / 120)
+		var attached_lift = model.lift_acceleration
+		model.reset(kind)
+		model.pitch = 0.8
+		model.step(Vector4(0, 0, 0, 0.35), 1.0 / 120)
+		check(model.stalled and model.lift_acceleration < attached_lift, "aircraft %d separated flow reduces lift" % kind)
+		model.reset(kind)
+		model.roll = -0.7
+		for n in range(120):
+			model.step(Vector4(0, 0, 0, 0.35), 1.0 / 120)
+		check(model.position.x > 1 and model.position.y < 45, "aircraft %d bank turns trajectory and reduces vertical lift" % kind)
+	var trainer = Flight.new()
+	var jet = Flight.new()
+	trainer.reset(0)
+	jet.reset(1)
+	for n in range(60):
+		trainer.step(Vector4(0.3, 0, 0, 1), 1.0 / 120)
+		jet.step(Vector4(0.3, 0, 0, 1), 1.0 / 120)
+	check(absf(jet.roll) > absf(trainer.roll) * 1.5, "jet has faster aileron response than trainer")
+	check(trainer.engine_power > jet.engine_power + 0.15, "jet turbine spools more slowly than trainer propeller")
+	trainer.reset(0)
+	jet.reset(1)
+	trainer.roll = -0.6
+	jet.roll = -0.6
+	for n in range(120):
+		trainer.step(Vector4(0, 0, 0, 0.35), 1.0 / 120)
+		jet.step(Vector4(0, 0, 0, 0.35), 1.0 / 120)
+	check(absf(trainer.roll) < absf(jet.roll) - 0.1, "trainer dihedral recovers bank while jet retains attitude")
+	model.reset(2)
+	var coasting = model.velocity
+	for n in range(120):
+		model.step(Vector4(0.5, 0, 0, 0), 1.0 / 120, 6)
+	check(model.velocity == coasting and model.position.y == 45, "spacecraft coasts without wing lift, bank turning, wind or gravity")
+	model.reset(2)
+	for n in range(120):
+		model.step(Vector4(0, 0, 0, 1), 1.0 / 120)
+	check(model.speed > 40, "spacecraft thrust accelerates along its facing direction")
+	var coarse = Flight.new()
+	var fine = Flight.new()
+	coarse.reset(0)
+	fine.reset(0)
+	for n in range(120): coarse.step(Vector4(0.12, 0.08, 0, 0.4), 1.0 / 60)
+	for n in range(240): fine.step(Vector4(0.12, 0.08, 0, 0.4), 1.0 / 120)
+	check(coarse.position.distance_to(fine.position) < 0.5, "force integration stays consistent across 60/120 Hz")
 	check(Flight.crossing_distance(Vector3(0, 45, 1), Vector3(0, 45, -1), Vector3(0, 45, 0)) == 0, "swept gate crossing detects center pass")
 	check(is_equal_approx(Flight.crossing_distance(Vector3(0, 0, 2), Vector3(4, 0, -2), Vector3.ZERO), 2), "gate crossing interpolates movement")
 	check(Flight.crossing_distance(Vector3(0, 0, -1), Vector3(0, 0, 1), Vector3.ZERO) == -1, "reverse crossing does not score")
@@ -263,6 +329,34 @@ func run():
 	check(game.calibration_open, "controller lab opens")
 	game.show_menu()
 	check(game.state == "MENU", "debrief and calibration return to hangar")
+	# Reproduce the phone text-width failure at wide, standard and compact canvases.
+	for dimensions in [Vector2i(1280, 720), Vector2i(1600, 720), Vector2i(1280, 960), Vector2i(960, 540)]:
+		var viewport = SubViewport.new()
+		viewport.size = dimensions
+		root.add_child(viewport)
+		var layout = Main.new()
+		viewport.add_child(layout)
+		await process_frame
+		await process_frame
+		var readable = true
+		var bounded_choices = true
+		for label in layout.ui.find_children("*", "Label", true, false):
+			if label.is_visible_in_tree() and not label.text.is_empty():
+				readable = readable and label.size.x > 40 and label.get_line_count() <= 3
+		for option in layout.ui.find_children("*", "OptionButton", true, false):
+			bounded_choices = bounded_choices and option.size.y >= 48 and option.size.y <= 64
+		check(readable and bounded_choices, "canvas %s menu keeps readable text and bounded selectors" % dimensions)
+		layout.start_run()
+		layout._process(0.01)
+		await process_frame
+		check(layout.telemetry.get_line_count() == 1 and layout.progress_label.get_line_count() == 1 and layout.telemetry.size.x > 400, "canvas %s HUD never wraps into a text column" % dimensions)
+		check(layout.telemetry.get_global_rect().end.x < layout.mobile_pause.get_global_rect().position.x, "canvas %s telemetry clears pause button" % dimensions)
+		layout.finish_run("Test end", false)
+		var attempts = layout.profile.data.records[layout.record_key(layout.stage)].attempts
+		layout.refresh_layout()
+		check(not layout.hud.visible and layout.profile.data.records[layout.record_key(layout.stage)].attempts == attempts, "canvas %s debrief hides HUD and resizing does not save another attempt" % dimensions)
+		viewport.queue_free()
+		await process_frame
 	game.queue_free()
 	await process_frame
 	# Let the audio server retire stopped playback objects before the test process exits.

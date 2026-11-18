@@ -2,7 +2,7 @@
 
 **A small world. A sharper pilot.** An offline Windows flight-skills game for USB radio controllers, with original procedural polygon art.
 
-**0.1.0-rc.5 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is an arcade training game, not a certified simulator or proof of real flight proficiency.
+**0.1.0-rc.6 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is a flight-skills game, not a certified simulator or proof of real flight proficiency.
 
 ## Play
 
@@ -23,7 +23,7 @@
 
 **Keyboard is the default input mode**; no radio is needed. If a radio was selected, choose Keyboard practice in Controller setup. WASD and arrows may be mixed; opposite directions cancel and duplicate direction keys do not increase input. Arrow left/right now bank; rudder has moved to Z/C.
 
-Bank causes a turn; level wings do not restore heading. Pitch holds its last angle when centered. All craft maintain forward speed at low throttle. Missed gates do not end a run. Terrain contact, airspace limits (±145 m lateral / 180 m altitude), or 180 seconds end the session. No commands are sent to physical equipment.
+Trainer and jet use lift, drag, thrust and gravity: ailerons command roll rate, elevator changes angle of attack, banking reduces vertical lift and low power leads to a glide. Kestrel has stronger stability and a faster propeller response; Peregrine rolls faster, has higher wing loading and a slower turbine spool. Nomad uses thruster acceleration and coasts at zero power, without wing lift or bank-to-turn coupling. These are original reduced-order models, not the Aerofly RC8 physics engine; no real-aircraft fidelity is claimed. Missed gates do not end a run. Terrain contact, airspace limits (±145 m lateral / 180 m altitude), or 180 seconds end the session. No commands are sent to physical equipment.
 
 **Device/focus loss freezes flight.** Reconnect the same radio, center controls, lower throttle, explicitly resume. No automatic keyboard takeover. If the transient device ID changes, return to hangar and explicitly select the radio again. Identical devices may share a profile; validate each separately.
 
@@ -33,9 +33,15 @@ Choose **Foundations** (wide gates), **Crosswind** (narrower gates and increased
 
 ## Android test APK (rc.4)
 
-The shared offline Godot game now supports Android ARM64 in landscape orientation. Download the APK from the rc.4 GitHub prerelease and install it through the Android browser/file manager. On-screen touch controls are the supported Android input: left pad for yaw/throttle and right for bank/pitch, with a visible PAUSE button. Throttle holds its setting on release; other axes return to neutral. Loss of app focus pauses the game.
+The shared offline Godot game now supports Android ARM64 in landscape orientation. Download the latest Android APK from [Releases](https://github.com/Denberg28/Horizon-Sky/releases) and install it through the Android browser/file manager. On-screen touch controls are the supported Android input: left line stick for rudder/power and right for aileron/elevator, with a visible PAUSE button. Throttle holds its setting on release; other axes return to neutral. Loss of app focus pauses the game.
 
 This is a **debug-signed test APK**, not a Play Store or stable build. The CI test signing key is temporary and differs between builds. An Android upgrade may require uninstalling the old test APK, which can erase local saves. Android radio/controller compatibility and real phone performance have not been verified. The Android pilot save is independent of the Windows save.
+
+## Fullscreen and controls (rc.6)
+
+The scene fills landscape displays, including wide phones, without fixed-aspect side bars. Menus use short labels and bounded selectors; the HUD uses two horizontal readouts and disappears on pause/results. Windows launches fullscreen; F11 toggles windowed mode. Android retains immersive landscape mode and uses display-safe margins.
+
+Touch sticks use transparent graduated cross-lines with small position lights, based on the TeleRC Go line style. The visible endpoints map to full input. Power holds on release; the other axes center. A fresh run resets power to 35%; app focus loss clears gesture ownership. Optional **Controls** contains the short guide.
 
 ## Flight sound (rc.5)
 
@@ -62,7 +68,7 @@ godot --headless --path . --export-release "Windows Desktop" build/HorizonSky.ex
 python3 scripts/package.py --commit YOUR_COMMIT_SHA
 ```
 
-Tests require `--test` and isolate profile writes. `-- --demo --frames=600` enables a visual-smoke autopilot; it does not prove manual playability or training benefit.
+Tests require `--test` and isolate profile writes. `-- --touch-preview` explicitly selects touch controls for desktop layout review. `-- --demo --frames=600` enables a visual-smoke autopilot; it does not prove manual playability or training benefit.
 
 CI verifies vendor SHA512 downloads, imports, behavior/source checks, Windows export/PE/archive/checksum validation and packaged Windows headless startup. Only then does main publish an immutable prerelease. Stable promotion is intentionally absent until required device validation passes.
 

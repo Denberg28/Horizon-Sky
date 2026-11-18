@@ -1,18 +1,26 @@
 extends RefCounted
-## Deterministic arcade flight model. Units: metres, seconds, radians.
+## Reduced-order force model: metres, seconds, radians. Original, not an RC8 engine port.
+const GRAVITY = 9.81
+const DENSITY = 1.225
+# Handling tuning: trainer stability, jet wing loading/spool, spacecraft thrusters.
 const VEHICLES = [
-	{"name": "Kestrel", "role": "TRAINER / forgiving", "min_speed": 24.0, "max_speed": 55.0, "response": 3.0, "roll_rate": 1.4, "pitch_rate": 0.65, "yaw_rate": 0.42, "inertia": 3.5},
-	{"name": "Peregrine", "role": "JET / fast precision", "min_speed": 38.0, "max_speed": 88.0, "response": 5.0, "roll_rate": 2.0, "pitch_rate": 0.85, "yaw_rate": 0.3, "inertia": 2.5},
-	{"name": "Nomad", "role": "SPACECRAFT / momentum", "min_speed": 18.0, "max_speed": 64.0, "response": 1.5, "roll_rate": 1.0, "pitch_rate": 0.8, "yaw_rate": 0.6, "inertia": 0.9}
+	{"name": "Kestrel", "role": "Trainer", "cruise_speed": 32.0, "stall_speed": 14.0, "max_speed": 55.0, "mass": 8.0, "area": 0.5, "cl_alpha": 4.8, "cl_max": 1.35, "cd0": 0.045, "induced_drag": 0.07, "stall_angle": 0.28, "roll_rate": 1.5, "pitch_rate": 0.7, "yaw_rate": 0.35, "stability": 2.3, "dihedral": 0.45, "engine_response": 5.0, "side_damping": 2.8},
+	{"name": "Peregrine", "role": "Jet", "cruise_speed": 50.0, "stall_speed": 25.0, "max_speed": 88.0, "mass": 14.0, "area": 0.32, "cl_alpha": 3.8, "cl_max": 1.15, "cd0": 0.03, "induced_drag": 0.08, "stall_angle": 0.23, "roll_rate": 2.8, "pitch_rate": 1.0, "yaw_rate": 0.22, "stability": 1.4, "dihedral": 0.025, "engine_response": 1.3, "side_damping": 3.8},
+	{"name": "Nomad", "role": "Spacecraft", "cruise_speed": 30.0, "max_speed": 64.0, "roll_rate": 1.6, "pitch_rate": 0.9, "yaw_rate": 0.8}
 ]
 var position = Vector3(0, 45, 30)
 var pitch = 0.0
 var roll = 0.0
 var heading = 0.0
 var velocity = Vector3.ZERO
-var speed = 35.0
+var speed = 32.0
 var time = 0.0
 var vehicle = 0
+var angular_velocity = Vector3.ZERO
+var engine_power = 0.35
+var angle_of_attack = 0.0
+var stalled = false
+var lift_acceleration = 0.0
 
 func reset(kind: int):
 	vehicle = clampi(kind, 0, 2)
@@ -20,26 +28,81 @@ func reset(kind: int):
 	pitch = 0.0
 	roll = 0.0
 	heading = 0.0
-	speed = VEHICLES[vehicle].min_speed + 8.0
+	speed = VEHICLES[vehicle].cruise_speed
 	velocity = Vector3(0, 0, -speed)
 	time = 0.0
+	angular_velocity = Vector3.ZERO
+	engine_power = 0.35
+	angle_of_attack = 0.0
+	stalled = false
+	lift_acceleration = 0.0
+
+func forward_vector() -> Vector3:
+	return Vector3(sin(heading) * cos(pitch), sin(pitch), -cos(heading) * cos(pitch))
 
 func step(command: Vector4, dt: float, wind: float = 0.0):
-	if dt <= 0.0 or dt > 0.1 or not command.is_finite():
+	if not is_finite(dt) or dt <= 0.0 or dt > 0.1 or not command.is_finite() or not is_finite(wind):
 		return
-	var v = VEHICLES[vehicle]
 	var c = command.clamp(Vector4(-1, -1, -1, 0), Vector4.ONE)
-	var response: float = 1.0 - exp(-v.response * dt)
-	# Roll is an attitude command, pitch and rudder are rates. A bank causes a turn.
-	roll = lerpf(roll, -c.x * 1.1, response)
-	pitch = clampf(pitch + c.y * v.pitch_rate * dt, -0.65, 0.65)
-	heading = clampf(heading + (c.z * v.yaw_rate - sin(roll) * 0.38) * dt, -1.0, 1.0)
-	speed = lerpf(speed, lerpf(v.min_speed, v.max_speed, c.w), 1.0 - exp(-dt * 1.8))
-	var forward = Vector3(sin(heading) * cos(pitch), sin(pitch), -cos(heading) * cos(pitch))
-	var target_velocity: Vector3 = forward * speed + Vector3(sin(time * 0.7) * wind, 0, 0)
-	velocity = velocity.lerp(target_velocity, 1.0 - exp(-dt * v.inertia))
+	if vehicle == 2:
+		_step_space(c, dt)
+	else:
+		_step_aircraft(c, dt, wind)
 	position += velocity * dt
+	speed = velocity.length()
 	time += dt
+
+func _step_aircraft(c: Vector4, dt: float, wind: float):
+	var v = VEHICLES[vehicle]
+	var wind_velocity = Vector3(sin(time * 0.7) * wind, 0, 0)
+	var air_velocity = velocity - wind_velocity
+	var airspeed = maxf(air_velocity.length(), 0.1)
+	var flow = air_velocity / airspeed
+	var flight_path = asin(clampf(flow.y, -1, 1))
+	angle_of_attack = pitch - flight_path
+	stalled = absf(angle_of_attack) > v.stall_angle or airspeed < v.stall_speed
+	# Dynamic pressure limits surface authority; neutral damps rates, not velocity.
+	var authority = clampf(pow(airspeed / v.cruise_speed, 2), 0.08, 1.5)
+	var flow_heading = atan2(air_velocity.x, -air_velocity.z)
+	var targets = Vector3(c.y * v.pitch_rate * authority - angle_of_attack * v.stability * authority,
+		c.z * v.yaw_rate * authority + wrapf(flow_heading - heading, -PI, PI) * 2.0,
+		-c.x * v.roll_rate * authority - roll * v.dihedral * (1.0 - absf(c.x)))
+	angular_velocity = angular_velocity.lerp(targets, 1.0 - exp(-dt * 12.0))
+	pitch = clampf(pitch + angular_velocity.x * dt, -1.3, 1.3)
+	heading = wrapf(heading + angular_velocity.y * dt, -PI, PI)
+	roll = wrapf(roll + angular_velocity.z * dt, -PI, PI)
+	engine_power = lerpf(engine_power, c.w, 1.0 - exp(-v.engine_response * dt))
+	# Trim at cruise / 35% power; power changes energy, elevator changes AoA.
+	var trim_q = 0.5 * DENSITY * v.cruise_speed * v.cruise_speed
+	var trim_cl = v.mass * GRAVITY / (trim_q * v.area)
+	var max_thrust = trim_q * v.area * (v.cd0 + v.induced_drag * trim_cl * trim_cl) / 0.35
+	var cl = clampf(trim_cl + v.cl_alpha * angle_of_attack, -v.cl_max, v.cl_max)
+	var separation = maxf(0, absf(angle_of_attack) - v.stall_angle)
+	cl *= maxf(0.12, 1.0 - separation * 3.5)
+	var q_area = 0.5 * DENSITY * airspeed * airspeed * v.area
+	var cd = v.cd0 + v.induced_drag * cl * cl + separation * 0.9
+	var unbanked_up = (Vector3.UP - flow * flow.y).normalized()
+	var flow_right = flow.cross(Vector3.UP).normalized()
+	var lift_direction = unbanked_up * cos(roll) - flow_right * sin(roll)
+	lift_acceleration = q_area * cl / v.mass
+	var body_right = Vector3(cos(heading), 0, sin(heading))
+	var side_slip = air_velocity.dot(body_right)
+	var acceleration = Vector3.DOWN * GRAVITY + lift_direction * lift_acceleration
+	acceleration += forward_vector() * (engine_power * max_thrust / v.mass) - flow * (q_area * cd / v.mass)
+	acceleration -= body_right * side_slip * v.side_damping
+	velocity = (velocity + acceleration * dt).limit_length(v.max_speed)
+
+func _step_space(c: Vector4, dt: float):
+	var v = VEHICLES[vehicle]
+	angular_velocity = angular_velocity.lerp(Vector3(c.y * v.pitch_rate, c.z * v.yaw_rate, -c.x * v.roll_rate), 1.0 - exp(-dt * 9.0))
+	pitch = clampf(pitch + angular_velocity.x * dt, -1.3, 1.3)
+	heading = wrapf(heading + angular_velocity.y * dt, -PI, PI)
+	roll = wrapf(roll + angular_velocity.z * dt, -PI, PI)
+	engine_power = c.w
+	# No wing lift, bank-to-turn coupling, gravity or atmospheric velocity blending.
+	velocity = (velocity + forward_vector() * c.w * 12.0 * dt).limit_length(v.max_speed)
+	stalled = false
+	lift_acceleration = 0
 
 static func crossing_distance(previous: Vector3, current: Vector3, gate: Vector3) -> float:
 	if previous.z > gate.z and current.z <= gate.z:

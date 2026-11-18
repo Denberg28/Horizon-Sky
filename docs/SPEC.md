@@ -6,7 +6,7 @@ Assumptions: native Windows x86_64, offline USB HID input, mouse/keyboard menus.
 
 MVP: three planet courses; trainer/jet/spacecraft profiles; 16 gates; terrain/pylon avoidance; chase view; input monitors; keyboard practice; device selection, four-axis calibration and inversion; explicit readiness/pause/recovery; scored debrief; best/attempt/last-result saves with recovery; Windows ZIP and CI.
 
-Non-goals: certified flight training, realistic aerodynamics/orbits, combat, multiplayer, mission editor, force feedback, physical aircraft commands, RF/ELRS/SBUS/receivers, automatic radio firmware configuration, universal radio compatibility, paid assets/services, music/sound and stable promotion before HIL.
+Non-goals: certified flight training, validated real-aircraft/RC8 equivalence, complete 6-DOF aerodynamics/orbits, combat, multiplayer, mission editor, force feedback, physical aircraft commands, RF/ELRS/SBUS/receivers, automatic radio firmware configuration, universal radio compatibility, paid assets/services, music and stable promotion before HIL.
 
 Flow: hangar → world/craft → controller lab as needed → readiness → course → debrief → replay/hangar. Esc, device removal or focus loss → frozen pause → explicit readiness → resume. Changed device ID → hangar/reselection. Corrupt save → backup/defaults; unwritable save → visible warning/playable session.
 
@@ -24,3 +24,7 @@ Flow: hangar → world/craft → controller lab as needed → readiness → cour
 | A10 | Training utility: five baseline and five later runs with same course/craft; compare median gates, center precision and contact rate. No skill-improvement claim without observations. |
 
 Candidate gate: A1/A2/A3/A6/A7 and automated A8 pass; no known critical/high defects. Missing A4/A5/A8-interactive/A9-target remain explicit blockers to stable. A10 is an empirical limitation, not certification of skill transfer.
+
+## rc.6 scope and acceptance
+
+Baseline `9bb7072` / rc.5. User screenshots demonstrate letterboxed landscape display, HUD labels wrapping into vertical character columns, an expanding Sound selector and HUD remaining behind results. User also reports floating aircraft response and requests TeleRC Go-style line joysticks and RC8-like handling. Acceptance: horizontal bounded labels; compact primary screens; full landscape coverage; line endpoints map to full input; clean lifecycle/reset; separate force-based trainer/jet behavior and thruster-based spacecraft; no claimed proprietary engine equivalence. Existing controller authority, pause, persistence and release gates remain required.
