@@ -1,0 +1,16 @@
+Horizon Sky audio credits
+
+Sci-fi Sounds 1.0 by Kenney (kenney.nl)
+Source: https://kenney.nl/assets/sci-fi-sounds
+License: CC0 1.0 https://creativecommons.org/publicdomain/zero/1.0/
+Selected original Ogg files; no audio file edits. Playback pitch/volume/looping varies in game.
+
+Outer Space Music Pack by Leonardo Paz (leohpaz)
+Source: https://opengameart.org/content/outer-space-music-pack
+License selected: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+Tracks: Lift Off A; Racing Through Asteroids (Loop); Battle in Outer Space (Loop).
+Original Ogg files unchanged; runtime volume and looping only.
+Copyright/attribution retained: Leonardo Paz. No endorsement implied.
+
+Source file names and SHA256 checksums: manifest.json.

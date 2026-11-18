@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-rc.7 — 2026-11-19
+
+- Enlarged graduated touch sticks by roughly 45% at the standard landscape canvas while keeping central instruments clear.
+- Added a lower-center fighter-style compass/attitude/speed/altitude/power/vertical-speed/acceleration HUD.
+- Increased aircraft thrust response above cruise and idle drag; spacecraft now uses assisted cruise with low-power reverse-thruster braking.
+- Added five seeded track families with varied spacing, elevation, scenery and debris; Retry route preserves the seed while New route reshuffles.
+- Replaced synthesized generic sound with Kenney sampled sci-fi effects and stage-specific orchestral music by Leonardo Paz, with in-game and packaged attribution/license/hash inventory.
+- Added route stress, throttle-response, HUD spacing, imported-audio and scene-removal audio regressions. Candidate only; target-device validation remains pending.
+
 ## 0.1.0-rc.6 — 2026-11-19
 
 - Fixed zero-width HUD/Sound labels, oversized selectors and HUD leaking into results. Added compact menus, shorter copy and consistent text/control sizes.

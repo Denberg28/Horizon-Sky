@@ -28,3 +28,7 @@ Candidate gate: A1/A2/A3/A6/A7 and automated A8 pass; no known critical/high def
 ## rc.6 scope and acceptance
 
 Baseline `9bb7072` / rc.5. User screenshots demonstrate letterboxed landscape display, HUD labels wrapping into vertical character columns, an expanding Sound selector and HUD remaining behind results. User also reports floating aircraft response and requests TeleRC Go-style line joysticks and RC8-like handling. Acceptance: horizontal bounded labels; compact primary screens; full landscape coverage; line endpoints map to full input; clean lifecycle/reset; separate force-based trainer/jet behavior and thruster-based spacecraft; no claimed proprietary engine equivalence. Existing controller authority, pause, persistence and release gates remain required.
+
+## rc.7 scope
+
+User requests larger sticks, throttle acceleration/deceleration, a simple lower-center fighter-style HUD, varied/randomized tracks and a freely redistributable space-game sound pack for adventure. Retain explicit input authority, pause/recovery, profile compatibility and candidate gates. Credits must be available in-game, and bundled audio must be source/hash/license pinned. Random courses must remain within documented geometric limits and provide an exact retry.

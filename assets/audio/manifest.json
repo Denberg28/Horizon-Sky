@@ -1,0 +1,102 @@
+[
+  {
+    "file": "engineCircular_000.ogg",
+    "sha256": "8ab85f9fa85e9e692287f98acb36b9ac3ba15313b007c039055e286b736f4e3a",
+    "author": "Kenney",
+    "pack": "Sci-fi Sounds 1.0",
+    "license": "CC0-1.0",
+    "source": "https://kenney.nl/assets/sci-fi-sounds",
+    "download": "https://opengameart.org/sites/default/files/sci-fi_sounds.zip",
+    "original_file": "Audio/engineCircular_000.ogg"
+  },
+  {
+    "file": "spaceEngineLarge_000.ogg",
+    "sha256": "885aeda16116b715be5e8fd03d0d77959761015e1ca5823fd3b53d4fd965107f",
+    "author": "Kenney",
+    "pack": "Sci-fi Sounds 1.0",
+    "license": "CC0-1.0",
+    "source": "https://kenney.nl/assets/sci-fi-sounds",
+    "download": "https://opengameart.org/sites/default/files/sci-fi_sounds.zip",
+    "original_file": "Audio/spaceEngineLarge_000.ogg"
+  },
+  {
+    "file": "thrusterFire_000.ogg",
+    "sha256": "0fdc474d93f209debf1fc4ea77765a669dcb7676db31b4d8a0a509685bccf374",
+    "author": "Kenney",
+    "pack": "Sci-fi Sounds 1.0",
+    "license": "CC0-1.0",
+    "source": "https://kenney.nl/assets/sci-fi-sounds",
+    "download": "https://opengameart.org/sites/default/files/sci-fi_sounds.zip",
+    "original_file": "Audio/thrusterFire_000.ogg"
+  },
+  {
+    "file": "forceField_000.ogg",
+    "sha256": "c2916f2a062c8ddd1aca2826d134fe90847037db31342726ffb0f9097afe339c",
+    "author": "Kenney",
+    "pack": "Sci-fi Sounds 1.0",
+    "license": "CC0-1.0",
+    "source": "https://kenney.nl/assets/sci-fi-sounds",
+    "download": "https://opengameart.org/sites/default/files/sci-fi_sounds.zip",
+    "original_file": "Audio/forceField_000.ogg"
+  },
+  {
+    "file": "impactMetal_003.ogg",
+    "sha256": "ef29c3943ee701616f65e3d596c13eb3ff6b11ca5b3ac01e7bc923366a5c6f76",
+    "author": "Kenney",
+    "pack": "Sci-fi Sounds 1.0",
+    "license": "CC0-1.0",
+    "source": "https://kenney.nl/assets/sci-fi-sounds",
+    "download": "https://opengameart.org/sites/default/files/sci-fi_sounds.zip",
+    "original_file": "Audio/impactMetal_003.ogg"
+  },
+  {
+    "file": "forceField_004.ogg",
+    "sha256": "05609bb296cbc287ae95ac8924c89809d69c89d7bb357cc6a117ec1b1ef65e09",
+    "author": "Kenney",
+    "pack": "Sci-fi Sounds 1.0",
+    "license": "CC0-1.0",
+    "source": "https://kenney.nl/assets/sci-fi-sounds",
+    "download": "https://opengameart.org/sites/default/files/sci-fi_sounds.zip",
+    "original_file": "Audio/forceField_004.ogg"
+  },
+  {
+    "file": "explosionCrunch_002.ogg",
+    "sha256": "be2b8ddc62e4a24c91e2e77793de98549ce216faf2f323a917e7d6f34321ff97",
+    "author": "Kenney",
+    "pack": "Sci-fi Sounds 1.0",
+    "license": "CC0-1.0",
+    "source": "https://kenney.nl/assets/sci-fi-sounds",
+    "download": "https://opengameart.org/sites/default/files/sci-fi_sounds.zip",
+    "original_file": "Audio/explosionCrunch_002.ogg"
+  },
+  {
+    "file": "01_lift_off_a.ogg",
+    "sha256": "008d72625eda8426148d7565bec34b41903c5167db2e01b8a56cd58f5ef0ea34",
+    "author": "Leonardo Paz",
+    "pack": "Outer Space Music Pack",
+    "license": "CC-BY-4.0",
+    "source": "https://opengameart.org/content/outer-space-music-pack",
+    "download": "https://opengameart.org/sites/default/files/01_lift_off_a.ogg",
+    "modifications": "None; runtime volume and looping only"
+  },
+  {
+    "file": "03_racing_through_asteroids_loop.ogg",
+    "sha256": "3056f4da3b78ba5a96033cfe5244956c07bd88ad4c7a6019af9e1c99b9e3654f",
+    "author": "Leonardo Paz",
+    "pack": "Outer Space Music Pack",
+    "license": "CC-BY-4.0",
+    "source": "https://opengameart.org/content/outer-space-music-pack",
+    "download": "https://opengameart.org/sites/default/files/03_racing_through_asteroids_loop.ogg",
+    "modifications": "None; runtime volume and looping only"
+  },
+  {
+    "file": "06_battle_in_space_loop.ogg",
+    "sha256": "38a5099a8d31a1eb21f134562e162034a68785b414a06d0fcea45dc4a5645e9f",
+    "author": "Leonardo Paz",
+    "pack": "Outer Space Music Pack",
+    "license": "CC-BY-4.0",
+    "source": "https://opengameart.org/content/outer-space-music-pack",
+    "download": "https://opengameart.org/sites/default/files/06_battle_in_space_loop.ogg",
+    "modifications": "None; runtime volume and looping only"
+  }
+]
