@@ -9,3 +9,5 @@ No known critical/high defects after recorded software checks; missing verificat
 - Cone envelopes are conservative around polygon faces; wingtip-only impacts/ring-wall collision are not modeled. Analytic terrain contact can differ slightly from rendered triangles.
 - Menus target 1280×800 and a 16:10 logical canvas. Other aspect ratios change framing; lower resolutions not validated.
 - No sound/music; unsigned executable. One instance at a time; back up saves before upgrade/downgrade.
+- New stage progression, procedural debris and responsive menus need interactive Windows visual/performance testing. Target screen layouts below 1280×800 are not verified.
+- Moving debris is simulated by simple deterministic oscillation and sphere collision, not orbital physics; training transfer remains unmeasured.

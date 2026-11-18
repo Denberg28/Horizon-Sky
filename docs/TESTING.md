@@ -1,3 +1,7 @@
+## rc.3 new regression acceptance
+
+Software tests now cover all nine world/stage route combinations (16 target gates and clearance), 15 stage-three moving hazards, hazard contact, progressing hazard coordinates and unlock thresholds (55/65). Manual Windows/HIL should additionally verify stage selector disabled states, unlock persistence after restart, paused hazard freeze, readable waypoint marker on all palettes, no obstruction at 1280×800, no off-screen menu controls, and 60 fps for 10 minutes with procedural debris enabled. These interactive/hardware checks are **NOT TESTED** until measured on the target PC and radio. Candidate CI status must be read from the observed run, not inferred from this document.
+
 # Verification and hardware protocol
 
 ## Required gates

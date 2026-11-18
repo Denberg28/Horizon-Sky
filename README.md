@@ -27,6 +27,10 @@ Bank causes a turn; level wings do not restore heading. Pitch holds its last ang
 
 **Device/focus loss freezes flight.** Reconnect the same radio, center controls, lower throttle, explicitly resume. No automatic keyboard takeover. If the transient device ID changes, return to hangar and explicitly select the radio again. Identical devices may share a profile; validate each separately.
 
+## Staged training (rc.3)
+
+Choose **Foundations** (wide gates), **Crosswind** (narrower gates and increased drift), or **Debris Run** (tight gates and moving polygon debris). Score at least **55/100** in Foundations to unlock Crosswind; score **65/100** in Crosswind to unlock Debris Run, separately for each planet/craft. An existing rc.2 flight log is retained: its original record key counts as Foundations. All stages keep 16 gates and the same 180-second limit. A light HUD target marker, attitude line, streak counter, progress strip, and animated engine flare support look-ahead without adding menus while flying. Scores are heuristic practice feedback, not real-flight certification.
+
 ## Compatibility and storage
 
 Target: Windows 10/11 x86_64 with OpenGL 3.3 capable graphics, keyboard/mouse, optional USB joystick. Four independent axes must be exposed to Godot's input interface. Detection alone is not compatibility; generic HID radios, firmware modes and axis ordering need controller-lab/HIL verification. Other CPU architectures and non-USB radio transports are outside this candidate.

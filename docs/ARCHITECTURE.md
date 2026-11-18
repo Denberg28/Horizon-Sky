@@ -1,3 +1,7 @@
+## rc.3 stage progression
+
+The stage index is a transient menu selection (0–2); `course.gd` owns stage metadata, stage-dependent ring sizes/wind and deterministic moving polygon hazards. `main.gd` owns unlocks and stores distinct stage records via the existing schema-1 dictionary. Foundations uses its rc.2 key for backwards compatibility. Unlock thresholds are based on existing `best` scores (55, then 65); incomplete attempts cannot reach 55 because they are halved. Stage debris moves only inside `FLYING`, so focus/device pause freezes hazards as well as flight and score. `hud.gd` receives read-only flight/progress/screen-space waypoint cues; it cannot change control authority.
+
 # Architecture
 
 Native Godot Compatibility/OpenGL scene, original geometry, 120 Hz fixed simulation; no external models/textures/plugins. Rendering follows the display update rate.

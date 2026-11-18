@@ -121,6 +121,20 @@ func run():
 		for gate in course.gates:
 			clear = clear and not course.collision(gate) and gate.y - Course.ground_height(gate.x, gate.z) > 15
 		check(clear and course.collision(Vector3(0, -5, 0)), "world %d gates clear obstacles; terrain contact detected" % world)
+	# Every stage preserves route length, gate clearance and static collision safety.
+	for world in range(3):
+		for tier in range(3):
+			course.build(world, tier)
+			var clear_stage = course.gates.size() == Course.GATE_COUNT
+			for gate in course.gates:
+				clear_stage = clear_stage and not course.collision(gate)
+			check(clear_stage and is_equal_approx(course.gate_radius(), float(Course.STAGES[tier].radius)), "world %d stage %d traversable target gates" % [world, tier])
+			if tier == 2:
+				check(course.hazards.size() == Course.GATE_COUNT - 1, "debris stage populates deterministic hazards")
+				var moving = course.hazards[0].mesh.position
+				course.update_hazards(0.5)
+				check(course.hazards[0].mesh.position != moving, "debris advances with simulation clock")
+				check(course.debris_collision(course.hazards[0].mesh.position), "debris impact detected")
 	course.queue_free()
 	var store = Store.new()
 	check(store._valid({"schema": 1, "controllers": {}, "records": {}}), "profile schema accepted")
@@ -142,6 +156,12 @@ func run():
 	root.add_child(game)
 	await process_frame
 	check(game.state == "MENU", "game boots to hangar")
+	check(game.unlocked_stage_count() == 1, "fresh profiles start with Foundations")
+	game.profile.data.records[game.record_key(0)] = {"best": 60.0, "attempts": 1, "last": {}}
+	check(game.unlocked_stage_count() == 2, "first-stage success unlocks Crosswind")
+	game.profile.data.records[game.record_key(1)] = {"best": 68.0, "attempts": 1, "last": {}}
+	check(game.unlocked_stage_count() == 3, "Crosswind success unlocks Debris Run")
+	game.profile.data.records.clear()
 	game.start_run()
 	check(game.state == "FLYING", "keyboard launch starts training")
 	game.pause_run("test")

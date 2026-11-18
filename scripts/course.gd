@@ -6,6 +6,22 @@ const PLANETS = [
 ]
 const GATE_COUNT = 16
 const RADIUS = 10.0
+# Each stage preserves sixteen gates and the legacy save schema.
+const STAGES = [
+	{"name": "FOUNDATIONS", "subtitle": "Read the line", "brief": "Wide gates, steady conditions and basic terrain awareness.", "radius": 10.0},
+	{"name": "CROSSWIND", "subtitle": "Anticipate drift", "brief": "Narrower gates, stronger drift and sharper changes of elevation.", "radius": 9.0},
+	{"name": "DEBRIS RUN", "subtitle": "Precision under pressure", "brief": "Tight gates, moving polygon debris and demanding route geometry.", "radius": 8.0}
+]
+var stage = 0
+var elapsed = 0.0
+var hazards: Array[Dictionary] = []
+
+func gate_radius() -> float:
+	return float(STAGES[stage].radius)
+
+func wind_strength() -> float:
+	return float(PLANETS[planet].wind) + [0.0, 2.0, 3.5][stage]
+
 var gates: Array[Vector3] = []
 var rings: Array[MeshInstance3D] = []
 var obstacles: Array[Dictionary] = []
@@ -15,8 +31,11 @@ var root: Node3D
 static func ground_height(x: float, z: float) -> float:
 	return -1.0 + sin(z * 0.012) * 5.0 + maxf(0, absf(x) - 55.0) * 0.34
 
-func build(kind: int):
+func build(kind: int, tier: int = 0):
 	planet = clampi(kind, 0, 2)
+	stage = clampi(tier, 0, STAGES.size() - 1)
+	elapsed = 0.0
+	hazards.clear()
 	for child in get_children():
 		child.queue_free()
 	gates.clear()
@@ -47,10 +66,10 @@ func build(kind: int):
 	land.material_override = land_material
 	root.add_child(land)
 	for i in range(GATE_COUNT):
-		var gate = Vector3(sin(i * 0.72) * (22.0 + planet * 4), 42 + sin(i * 0.81) * 15, -75 - i * 105)
+		var gate = Vector3(sin(i * (0.72 + stage * 0.03)) * (22.0 + planet * 4.0 + stage * 4.0), 42.0 + sin(i * 0.81 + stage * 0.15) * (15.0 + stage * 3.0), -75.0 - i * 105.0)
 		gates.append(gate)
 		var ring = MeshInstance3D.new()
-		ring.mesh = ring_mesh(RADIUS, 0.55, 24)
+		ring.mesh = ring_mesh(gate_radius(), 0.6, 24)
 		ring.position = gate
 		ring.material_override = material(palette.accent if i == 0 else palette.accent.darkened(0.55), true)
 		root.add_child(ring)
@@ -78,13 +97,49 @@ func build(kind: int):
 			mountain.material_override = material(palette.rock.lightened(0.15))
 			root.add_child(mountain)
 
+	# Stage-three hazards are seeded by the fixed route, so every retry is learnable.
+	# Debris never spawns inside the gate plane; the pilot has room to anticipate it.
+	if stage == 2:
+		for i in range(GATE_COUNT - 1):
+			var middle: Vector3 = gates[i].lerp(gates[i + 1], 0.5)
+			var debris = MeshInstance3D.new()
+			var shape = SphereMesh.new()
+			shape.radius = 4.5
+			shape.height = 9.0
+			shape.radial_segments = 7
+			shape.rings = 3
+			debris.mesh = shape
+			debris.material_override = material(palette.rock.lightened(0.32))
+			root.add_child(debris)
+			var center = middle + Vector3(12.0 if i % 2 == 0 else -12.0, 2.5, 0)
+			var obstacle = {"mesh": debris, "center": center, "phase": float(i) * 1.9, "radius": 4.5}
+			hazards.append(obstacle)
+		update_hazards(0.0)
+
+func update_hazards(dt: float):
+	if stage != 2:
+		return
+	elapsed += maxf(0.0, dt)
+	for hazard in hazards:
+		var debris: MeshInstance3D = hazard.mesh
+		var center: Vector3 = hazard.center
+		debris.position = center + Vector3(sin(elapsed * 0.8 + hazard.phase) * 10.0, cos(elapsed * 0.65 + hazard.phase) * 2.5, 0)
+		debris.rotation.y = elapsed * 0.22 + hazard.phase
+
+func debris_collision(position: Vector3) -> bool:
+	for hazard in hazards:
+		var debris: MeshInstance3D = hazard.mesh
+		if position.distance_to(debris.position) < float(hazard.radius) + 2.0:
+			return true
+	return false
+
 func mark_gate(index: int, success: bool):
 	rings[index].material_override = material(Color("72f4b6") if success else Color("fa785e"), true)
 	if index + 1 < rings.size():
 		rings[index + 1].material_override = material(PLANETS[planet].accent, true)
 
 func collision(position: Vector3) -> bool:
-	if position.y < ground_height(position.x, position.z) + 2.0:
+	if position.y < ground_height(position.x, position.z) + 2.0 or debris_collision(position):
 		return true
 	for obstacle in obstacles:
 		var fraction = clampf((position.y - obstacle.base) / obstacle.height, 0, 1)
