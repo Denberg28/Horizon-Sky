@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-rc.8 — 2026-11-19
+
+- Added fading world-space wingtip contrails during actual speed-up, with bounded 30 Hz sampling and no false emission at steady speed.
+- Replaced the shared decorative flame with power-responsive trainer propwash, jet exhaust and twin spacecraft thrusters; audio pitch/level follows actual engine spool power.
+- Tuned cruise/maximum speeds to trainer 24/42 m/s, jet 50/96 m/s and spacecraft 42/115 m/s, with matched assisted thruster acceleration/braking.
+- Effects freeze on pause and clear on new flight, menu and debrief; added speed-envelope, ribbon, exhaust-intensity and lifecycle regressions. Candidate pending physical-device performance/HIL validation.
+
 ## 0.1.0-rc.7 — 2026-11-19
 
 - Enlarged graduated touch sticks by roughly 45% at the standard landscape canvas while keeping central instruments clear.

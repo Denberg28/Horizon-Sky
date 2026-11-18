@@ -14,3 +14,5 @@ No known critical/high defects after recorded software checks; missing verificat
 
 - Random routes are bounded by geometric checks, not proof of manual flyability on every seed/craft. Retry preserves a route for practice; compare scores across randomized layouts cautiously.
 - Spacecraft uses assisted cruise/braking for throttle responsiveness; it is not free Newtonian/orbital flight. Flight HUD values are game measurements, not certified instrumentation.
+
+- Contrails are stylized acceleration ribbons, not humidity/temperature/altitude-based condensation. Exhaust glow uses unshaded/emissive meshes without a bloom requirement. Physical phone/PC performance and readability with effects remain unverified.

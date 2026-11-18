@@ -2,7 +2,7 @@
 
 **A small world. A sharper pilot.** An offline Windows flight-skills game for USB radio controllers, with original procedural polygon art.
 
-**0.1.0-rc.7 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is a flight-skills game, not a certified simulator or proof of real flight proficiency.
+**0.1.0-rc.8 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is a flight-skills game, not a certified simulator or proof of real flight proficiency.
 
 ## Play
 
@@ -42,6 +42,18 @@ This is a **debug-signed test APK**, not a Play Store or stable build. The CI te
 The scene fills landscape displays, including wide phones, without fixed-aspect side bars. Menus use short labels and bounded selectors; the HUD uses two horizontal readouts and disappears on pause/results. Windows launches fullscreen; F11 toggles windowed mode. Android retains immersive landscape mode and uses display-safe margins.
 
 Touch sticks use larger transparent graduated cross-lines with small position lights, based on the TeleRC Go line style. The lower-center flight HUD shows compass heading, bank/pitch attitude, speed, altitude, power, vertical speed and measured acceleration. Aircraft thrust above cruise and idle drag make power changes more pronounced; the jet still spools more slowly than the trainer. The visible endpoints map to full input. Power holds on release; the other axes center. A fresh run resets power to 35%; app focus loss clears gesture ownership. Optional **Controls** contains the short guide.
+
+## Speed and effects (rc.8)
+
+| Craft | Cruise at 35% power | Game speed limit |
+| --- | --- | --- |
+| Kestrel trainer | 24 m/s (86 km/h) | 42 m/s (151 km/h) |
+| Peregrine jet | 50 m/s (180 km/h) | 96 m/s (346 km/h) |
+| Nomad spacecraft | 42 m/s (151 km/h) | 115 m/s (414 km/h) |
+
+These envelopes are game tuning for the course scale. Trainer/jet stall thresholds remain 14/25 m/s; gravity and lift still apply below cruise. Nomad's assisted acceleration/braking is tuned for its higher speed range. The aircraft selector shows each cruise speed; the HUD reports actual speed.
+
+Stylized wingtip contrails build during actual acceleration once moving, then fade over 1.4 seconds when acceleration stops. Constant full throttle at the speed limit does not create a false speed-up trail. Exhaust follows actual engine spool power: subtle trainer propwash, a bright jet plume, and twin spacecraft thrusters. Length, width, opacity and emission scale with power; sampled engine sound now follows actual spool power too. Pause suspends the effects; a new run, debrief or hangar clears old trails. These are visual acceleration cues, not meteorological condensation simulation.
 
 ## Adventure audio (rc.7)
 
