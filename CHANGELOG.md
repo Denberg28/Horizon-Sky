@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-rc.6 — 2026-11-19
+
+- Fixed zero-width HUD/Sound labels, oversized selectors and HUD leaking into results. Added compact menus, shorter copy and consistent text/control sizes.
+- Expanded the 1280×720 canvas to fill wide displays, added fullscreen startup and safe-area margins, and preserved resize/pause/debrief state.
+- Replaced circular touch pads with graduated gradient line sticks and small position lights. Full input matches visible endpoints; restarting resets held power.
+- Replaced target-velocity blending with original reduced-order aerodynamic forces for trainer/jet and separate spacecraft thrusters. Added gravity, lift/drag, stall response, angular damping, craft-specific stability/wing loading/spool and a heading-aligned chase view.
+- Added physical-behavior and multi-size UI regressions. Candidate only; exact RC8 equivalence, real-aircraft fidelity and physical-device validation are not claimed.
+
 ## 0.1.0-rc.5 — 2026-11-19
 
 - Added original synthesized engine loops for all three craft, responding smoothly to throttle and speed, plus gate pass/miss and debrief tones.

@@ -6,7 +6,7 @@ const Course = preload("res://scripts/course.gd")
 const HUD = preload("res://scripts/hud.gd")
 const TouchControls = preload("res://scripts/touch_controls.gd")
 const FlightAudio = preload("res://scripts/flight_audio.gd")
-const VERSION = "0.1.0-rc.5"
+const VERSION = "0.1.0-rc.6"
 const INK = Color("101e2c")
 const MINT = Color("b4ffcc")
 var flight = FlightModel.new()
@@ -23,6 +23,9 @@ var overlay: Control
 var hud: Control
 var touch_controls: Control
 var mobile_pause: Button
+var last_pause_reason = "Paused"
+var relayout_pending = false
+var telemetry_back: ColorRect
 var telemetry: Label
 var progress_label: Label
 var notice: Label
@@ -58,7 +61,7 @@ func _ready():
 	audio = FlightAudio.new()
 	add_child(audio)
 	audio.set_volume(profile.audio_volume())
-	if OS.get_name() == "Android":
+	if OS.get_name() == "Android" or "--touch-preview" in OS.get_cmdline_user_args():
 		radio.select_touch()
 	for argument in OS.get_cmdline_user_args():
 		if argument == "--demo":
@@ -70,6 +73,7 @@ func _ready():
 	build_world()
 	build_ui()
 	show_menu()
+	get_viewport().size_changed.connect(queue_layout)
 	Input.joy_connection_changed.connect(_device_changed)
 	if demo:
 		start_run()
@@ -146,7 +150,7 @@ func build_ui():
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	canvas.add_child(ui)
 	var theme = Theme.new()
-	theme.default_font_size = 18
+	theme.default_font_size = 20
 	for type in ["Button", "OptionButton", "SpinBox"]:
 		for style in ["normal", "hover", "pressed", "focus"]:
 			var box = StyleBoxFlat.new()
@@ -164,21 +168,30 @@ func build_ui():
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(hud)
-	var telemetry_back = ColorRect.new()
+	telemetry_back = ColorRect.new()
 	telemetry_back.color = Color(INK, 0.8)
 	telemetry_back.anchor_right = 1.0
 	telemetry_back.offset_left = 24
 	telemetry_back.offset_top = 20
 	telemetry_back.offset_right = -24
-	telemetry_back.offset_bottom = 146
+	telemetry_back.offset_bottom = 102
 	telemetry_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(telemetry_back)
 	telemetry = text(hud, "", 20)
 	telemetry.position = Vector2(40, 30)
+	telemetry.anchor_right = 1
+	telemetry.offset_right = -180
+	telemetry.clip_text = true
 	progress_label = text(hud, "", 20)
-	progress_label.position = Vector2(40, 72)
-	notice = text(hud, "", 22, MINT)
-	notice.position = Vector2(40, 118)
+	progress_label.position = Vector2(40, 64)
+	progress_label.anchor_right = 1
+	progress_label.offset_right = -180
+	progress_label.clip_text = true
+	notice = text(hud, "", 20, MINT)
+	notice.position = Vector2(40, 116)
+	notice.anchor_right = 1
+	notice.offset_right = -40
+	notice.clip_text = true
 	touch_controls = TouchControls.new()
 	touch_controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	touch_controls.visible = false
@@ -187,7 +200,7 @@ func build_ui():
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(overlay)
-	mobile_pause = button(ui, "PAUSE", func(): pause_run("Paused by pilot."))
+	mobile_pause = button(ui, "PAUSE", func(): pause_run("Ready when you are."))
 	mobile_pause.anchor_left = 1
 	mobile_pause.anchor_right = 1
 	mobile_pause.offset_left = -175
@@ -195,15 +208,19 @@ func build_ui():
 	mobile_pause.offset_top = 34
 	mobile_pause.offset_bottom = 92
 	mobile_pause.visible = false
+	layout_hud()
 
 func sync_flight_state():
 	if audio != null:
 		audio.set_flying(state == "FLYING" and focus_ok)
 	if touch_controls == null:
 		return
+	hud.visible = state == "FLYING"
+	hud.flying = state == "FLYING"
+	hud.show_input_monitors = not radio.touch_mode
 	var playing = state == "FLYING" and radio.touch_mode
 	touch_controls.visible = playing
-	mobile_pause.visible = playing
+	mobile_pause.visible = state == "FLYING"
 	if not playing:
 		touch_controls.clear_gestures()
 
@@ -223,14 +240,14 @@ func panel(parent: Node, rect: Rect2, opacity: float = 0.96, scrollable: bool = 
 	box.border_color = Color("4f7180", 0.52)
 	box.set_border_width_all(1)
 	box.set_corner_radius_all(14)
-	box.content_margin_left = 30
-	box.content_margin_top = 26
-	box.content_margin_right = 30
-	box.content_margin_bottom = 26
+	box.content_margin_left = 24
+	box.content_margin_top = 20
+	box.content_margin_right = 24
+	box.content_margin_bottom = 20
 	frame.add_theme_stylebox_override("panel", box)
 	parent.add_child(frame)
 	var col = VBoxContainer.new()
-	col.add_theme_constant_override("separation", 12)
+	col.add_theme_constant_override("separation", 10)
 	if scrollable:
 		var scroll = ScrollContainer.new()
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -244,7 +261,8 @@ func panel(parent: Node, rect: Rect2, opacity: float = 0.96, scrollable: bool = 
 func text(parent: Node, value: String, font_size: int = 18, color: Color = Color("e2eded")) -> Label:
 	var label = Label.new()
 	label.text = value
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if parent is VBoxContainer else TextServer.AUTOWRAP_OFF
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_shadow_color", Color(0.03, 0.08, 0.12, 0.6))
@@ -255,7 +273,7 @@ func text(parent: Node, value: String, font_size: int = 18, color: Color = Color
 func button(parent: Node, value: String, callback: Callable) -> Button:
 	var result = Button.new()
 	result.text = value
-	result.custom_minimum_size.y = 44
+	result.custom_minimum_size.y = 48
 	result.pressed.connect(callback)
 	parent.add_child(result)
 	return result
@@ -266,26 +284,85 @@ func gap(parent: Node, height: float):
 	parent.add_child(spacer)
 
 # Shared hangar/pause sound control: choices persist on selection, never per frame.
+func choice(parent: Node, items: Array, selected: int = 0) -> OptionButton:
+	var select = OptionButton.new()
+	select.fit_to_longest_item = false
+	select.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	select.custom_minimum_size = Vector2(0, 48)
+	select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for item in items:
+		select.add_item(str(item))
+	select.select(selected)
+	parent.add_child(select)
+	return select
+
 func sound_control(parent: Node):
 	var row = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	parent.add_child(row)
-	text(row, "SOUND", 15, MINT)
-	var select = OptionButton.new()
+	var label = text(row, "Sound", 18)
+	label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	label.custom_minimum_size.x = 72
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	var levels = [0.0, 0.2, 0.45, 0.75, 1.0]
-	for title in ["Muted", "Quiet", "Balanced", "Loud", "Full"]:
-		select.add_item(title)
 	var nearest = 0
 	for i in range(levels.size()):
 		if absf(levels[i] - audio.volume) < absf(levels[nearest] - audio.volume):
 			nearest = i
-	select.select(nearest)
-	select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(select)
-	var status = text(parent, "Engine and flight cues", 14, Color("9eb5c0"))
+	var select = choice(row, ["Muted", "Quiet", "Balanced", "Loud", "Full"], nearest)
+	var status = text(parent, "", 16, Color("ffbe91"))
+	status.visible = false
 	select.item_selected.connect(func(i):
 		audio.set_volume(levels[i])
-		status.text = "Sound preference saved" if profile.set_audio_volume(levels[i]) else profile.warning)
+		status.visible = not profile.set_audio_volume(levels[i])
+		status.text = profile.warning)
+
+# Expand the canvas, then keep interactive content inside display cutout margins.
+func safe_rect() -> Rect2:
+	var view = get_viewport().get_visible_rect().size
+	if OS.get_name() == "Android":
+		var safe = DisplayServer.get_display_safe_area()
+		var physical = Vector2(DisplayServer.window_get_size())
+		if safe.size.x > 0 and safe.size.y > 0 and physical.x > 0 and physical.y > 0:
+			return Rect2(Vector2(safe.position) * view / physical, Vector2(safe.size) * view / physical).grow(-16)
+	return Rect2(Vector2.ZERO, view).grow(-20)
+
+func layout_hud():
+	var safe = safe_rect()
+	telemetry_back.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	telemetry_back.position = safe.position
+	telemetry_back.size = Vector2(safe.size.x, 84)
+	for label in [telemetry, progress_label, notice]:
+		label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		label.size = Vector2(safe.size.x - 170, 30)
+	telemetry.position = safe.position + Vector2(16, 10)
+	progress_label.position = safe.position + Vector2(16, 44)
+	notice.position = safe.position + Vector2(16, 98)
+	notice.size.x = safe.size.x - 32
+	mobile_pause.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	mobile_pause.position = Vector2(safe.end.x - 120, safe.position.y + 12)
+	mobile_pause.size = Vector2(104, 56)
+
+func queue_layout():
+	if relayout_pending or ui == null:
+		return
+	relayout_pending = true
+	call_deferred("refresh_layout")
+
+func refresh_layout():
+	relayout_pending = false
+	var safe = safe_rect()
+	touch_controls.safe_bounds = safe
+	layout_hud()
+	if state == "MENU":
+		if calibration_open:
+			show_calibration()
+		else:
+			show_menu()
+	elif state == "PAUSED":
+		pause_run(last_pause_reason)
+	elif state == "RESULTS":
+		show_debrief()
 
 func record_key(tier: int) -> String:
 	var base = Course.PLANETS[planet].name + " / " + FlightModel.VEHICLES[vehicle].name
@@ -302,72 +379,57 @@ func unlocked_stage_count() -> int:
 func show_menu():
 	state = "MENU"
 	sync_flight_state()
-	hud.visible = false
 	clear_overlay()
-	var viewport_size = get_viewport().get_visible_rect().size
-	var left_width = minf(605.0, viewport_size.x - 40.0)
-	var col = panel(overlay, Rect2(20, 18, left_width, viewport_size.y - 36), 0.95, true)
-	text(col, "H O R I Z O N   S K Y", 17, MINT)
-	text(col, "Find your line.", 42)
-	text(col, "A small world. A sharper pilot.", 18, Color("a9bbc4"))
-	gap(col, 6)
-	text(col, "01   WORLD", 14, MINT)
-	var world_select = OptionButton.new()
-	for p in Course.PLANETS:
-		world_select.add_item(p.name + "  /  " + p.subtitle)
-	world_select.select(planet)
-	col.add_child(world_select)
+	var safe = safe_rect()
+	touch_controls.safe_bounds = safe
+	var width = minf(450, safe.size.x)
+	var col = panel(overlay, Rect2(safe.position, Vector2(width, safe.size.y)), 0.96, true)
+	text(col, "HORIZON SKY", 32, MINT)
+	text(col, "World", 16, Color("a9bbc4"))
+	var world_names = []
+	for world in Course.PLANETS:
+		world_names.append(world.name.capitalize())
+	var world_select = choice(col, world_names, planet)
 	world_select.item_selected.connect(func(i):
 		planet = i
 		stage = 0
 		call_deferred("show_menu"))
-	text(col, "02   AIRCRAFT", 14, MINT)
-	var craft_select = OptionButton.new()
+	text(col, "Aircraft", 16, Color("a9bbc4"))
+	var craft_names = []
 	for v in FlightModel.VEHICLES:
-		craft_select.add_item(v.name + "  /  " + v.role)
-	craft_select.select(vehicle)
-	col.add_child(craft_select)
+		craft_names.append(v.name + " · " + v.role)
+	var craft_select = choice(col, craft_names, vehicle)
 	craft_select.item_selected.connect(func(i):
 		vehicle = i
 		stage = 0
 		build_craft()
 		flight.reset(vehicle)
 		call_deferred("show_menu"))
-	text(col, "03   TRAINING STAGE", 14, MINT)
-	var stage_select = OptionButton.new()
-	for i in range(Course.STAGES.size()):
-		stage_select.add_item("%d  /  %s  —  %s" % [i + 1, Course.STAGES[i].name, Course.STAGES[i].subtitle])
-		stage_select.set_item_disabled(i, i >= unlocked_stage_count())
+	text(col, "Stage", 16, Color("a9bbc4"))
 	stage = mini(stage, unlocked_stage_count() - 1)
-	stage_select.select(stage)
-	col.add_child(stage_select)
-	var stage_brief = text(col, Course.STAGES[stage].brief, 16, Color("bfd0d7"))
+	var stage_select = choice(col, ["1 · Foundations", "2 · Crosswind", "3 · Debris Run"], stage)
+	for i in range(Course.STAGES.size()):
+		stage_select.set_item_disabled(i, i >= unlocked_stage_count())
 	stage_select.item_selected.connect(func(i):
 		if i < unlocked_stage_count():
 			stage = i
-			stage_brief.text = Course.STAGES[i].brief
 			course.build(planet, stage))
-	text(col, "04   INPUT AUTHORITY", 14, MINT)
-	text(col, authority_name(), 17)
-	button(col, "Touch control guide" if radio.touch_mode else "Controller setup & calibration", show_calibration)
-	button(col, "BEGIN STAGE  %02d" % (stage + 1), start_run)
+	var launch = button(col, "FLY", start_run)
+	launch.custom_minimum_size.y = 56
+	button(col, "Controls" if radio.touch_mode else "Controls · " + ("Keyboard" if radio.keyboard else "USB radio"), show_calibration)
 	sound_control(col)
-	text(col, "LEFT: yaw/throttle    RIGHT: bank/pitch    Tap PAUSE to stop." if radio.touch_mode else "WASD / arrows  pitch + bank     Z/C  yaw     Q/E  power\nEsc  pause     F11  fullscreen", 15, Color("9eb5c0"))
-	text(col, "Complete Stage 1 with 55+ to unlock Stage 2; score 65+ in Stage 2 to unlock Stage 3.", 14, Color("9eb5c0"))
 	if not profile.warning.is_empty():
-		text(col, profile.warning, 14, Color("ffbe91"))
-	text(col, "TEST CANDIDATE  " + VERSION, 13, Color("8ca4b1"))
-	if viewport_size.x > 1010:
-		var right_x = left_width + 42.0
-		var right_width = viewport_size.x - right_x - 22.0
-		var info = panel(overlay, Rect2(right_x, 36, right_width, minf(380.0, viewport_size.y - 60)), 0.72, true)
+		text(col, profile.warning, 16, Color("ffbe91"))
+	text(col, "TEST BUILD · " + VERSION, 14, Color("8ca4b1"))
+	if safe.size.x > 960:
+		var log_width = minf(330, safe.size.x - width - 28)
+		var info = panel(overlay, Rect2(safe.end.x - log_width, safe.position.y, log_width, 250), 0.82, true)
 		text(info, "FLIGHT LOG", 18, MINT)
 		for i in range(Course.STAGES.size()):
 			var record = profile.data.records.get(record_key(i), {})
 			var score = float(record.get("best", 0))
-			var status = "LOCKED" if i >= unlocked_stage_count() else "AVAILABLE"
-			text(info, "%02d   %s\n      Best %.0f / 100    %s" % [i + 1, Course.STAGES[i].name, score, status], 16)
-		text(info, Course.PLANETS[planet].lesson, 16, Color("bed0d5"))
+			var status = "Locked" if i >= unlocked_stage_count() else "%.0f / 100" % score
+			text(info, "%d  %s · %s" % [i + 1, ["Foundations", "Crosswind", "Debris"][i], status], 18)
 	course.build(planet, stage)
 	flight.reset(vehicle)
 	update_palette()
@@ -375,9 +437,9 @@ func show_menu():
 
 func authority_name() -> String:
 	if radio.touch_mode:
-		return "Touch / two virtual flight sticks"
+		return "Touch"
 	if radio.keyboard:
-		return "Keyboard practice / WASD or arrow keys"
+		return "Keyboard"
 	return Input.get_joy_name(radio.device) if radio.connected() else "Radio disconnected — select device again"
 
 func show_calibration():
@@ -466,9 +528,9 @@ func show_touch_guide():
 	var width = minf(760.0, view.x - 36.0)
 	var col = panel(overlay, Rect2((view.x - width) * 0.5, 18, width, view.y - 36), 0.96, true)
 	text(col, "TOUCH FLIGHT CONTROLS", 30, MINT)
-	text(col, "LEFT STICK: yaw horizontally and throttle vertically. Throttle remains at the last setting when released.", 20)
-	text(col, "RIGHT STICK: bank horizontally; pitch vertically. Down climbs, up descends. Controls return to neutral on release.", 20)
-	text(col, "Tap PAUSE at the top-right. Leaving the app pauses flight and clears gestures. Resume explicitly.", 18)
+	text(col, "Left: power ↑↓ · rudder ←→", 24)
+	text(col, "Right: elevator ↑↓ · aileron ←→", 24)
+	text(col, "Pull down to raise the nose. Power holds on release.", 20)
 	button(col, "Back to hangar", show_menu)
 
 func save_calibration():
@@ -490,6 +552,8 @@ func start_run():
 		return
 	flight.reset(vehicle)
 	radio.throttle = 0.35
+	touch_controls.reset_for_run()
+	radio.set_touch_command(touch_controls.command())
 	next_gate = 0
 	hits = 0
 	streak = 0
@@ -498,7 +562,7 @@ func start_run():
 	minimum_clearance = 999
 	command_variation = 0
 	last_command = Vector4.ZERO
-	message = "STAGE %02d / %s   —   %s" % [stage + 1, Course.STAGES[stage].name, Course.STAGES[stage].subtitle]
+	message = "STAGE %d · %s" % [stage + 1, Course.STAGES[stage].name]
 	message_time = 5
 	course.build(planet, stage)
 	update_palette()
@@ -511,6 +575,7 @@ func start_run():
 	update_camera(1.0)
 
 func pause_run(reason: String):
+	last_pause_reason = reason
 	if state != "FLYING" and state != "PAUSED":
 		return
 	state = "PAUSED"
@@ -519,13 +584,13 @@ func pause_run(reason: String):
 	var view = get_viewport().get_visible_rect().size
 	var width = minf(650.0, view.x - 40.0)
 	var col = panel(overlay, Rect2((view.x - width) * 0.5, maxf(16, (view.y - 460) * 0.5), width, minf(460.0, view.y - 32.0)), 0.97, true)
-	text(col, "FLIGHT PAUSED", 34, MINT)
+	text(col, "PAUSED", 32, MINT)
 	text(col, reason, 18)
-	text(col, "Flight time and movement are frozen.\nCenter controls and lower throttle before resuming.", 18)
-	button(col, "Resume flight", resume_run)
-	button(col, "Restart course", start_run)
+
+	button(col, "Resume", resume_run)
+	button(col, "Restart", start_run)
 	sound_control(col)
-	button(col, "Return to hangar", show_menu)
+	button(col, "Hangar", show_menu)
 
 func resume_run():
 	if not focus_ok or not radio.ready_to_fly():
@@ -548,31 +613,29 @@ func finish_run(reason: String, completed: bool):
 	var score = clampf(hits / float(Course.GATE_COUNT) * 65 + precision * 0.25 + smoothness * 0.1, 0, 100)
 	if not completed:
 		score *= 0.5
-	last_result = {"score": snappedf(score, 0.1), "hits": hits, "precision": snappedf(precision, 0.1), "seconds": snappedf(flight.time, 0.1), "clearance": snappedf(minimum_clearance, 0.1), "smoothness": snappedf(smoothness, 0.1), "completed": completed, "stage": stage + 1, "streak": best_streak}
-	var saved = profile.record(record_key(stage), last_result)
+	last_result = {"score": snappedf(score, 0.1), "hits": hits, "precision": snappedf(precision, 0.1), "seconds": snappedf(flight.time, 0.1), "clearance": snappedf(minimum_clearance, 0.1), "smoothness": snappedf(smoothness, 0.1), "completed": completed, "stage": stage + 1, "streak": best_streak, "reason": reason.get_slice(".", 0)}
+	profile.record(record_key(stage), last_result)
+	show_debrief()
+
+func show_debrief():
 	clear_overlay()
-	var view = get_viewport().get_visible_rect().size
-	var width = minf(690.0, view.x - 40.0)
-	var col = panel(overlay, Rect2((view.x - width) * 0.5, 24, width, view.y - 48), 0.97, true)
-	text(col, "STAGE %02d   /   FLIGHT DEBRIEF" % (stage + 1), 18, MINT)
-	text(col, "%.0f / 100" % score, 52)
-	text(col, reason, 22)
-	text(col, "%d / %d gates  •  %.1f s\nCenter precision  %.0f%%\nControl smoothness  %.0f%%\nBest clean streak  %d\nMinimum terrain clearance  %.1f m" % [hits, Course.GATE_COUNT, flight.time, precision, smoothness, best_streak, minimum_clearance], 22)
-	gap(col, 8)
-	var advice = "Look two gates ahead; turn before the gate fills your view."
-	if minimum_clearance < 12:
-		advice = "Protect your clearance. Establish altitude before the next turn."
-	elif smoothness < 65:
-		advice = "Use small corrections. Let the craft settle before reversing input."
-	text(col, advice, 17, MINT)
-	if not saved:
+	var safe = safe_rect()
+	var width = minf(580, safe.size.x)
+	var col = panel(overlay, Rect2(safe.get_center().x - width * 0.5, safe.position.y, width, safe.size.y), 0.97, true)
+	text(col, "STAGE %02d · RESULT" % (stage + 1), 18, MINT)
+	text(col, "%.0f / 100" % last_result.score, 44)
+	text(col, str(last_result.get("reason", "Flight ended")), 22)
+	text(col, "%d / %d gates · %.1f s" % [last_result.hits, Course.GATE_COUNT, last_result.seconds], 24)
+	text(col, "Precision %.0f%% · Smoothness %.0f%%" % [last_result.precision, last_result.smoothness], 20)
+	text(col, "Best streak %d · Clearance %.1f m" % [last_result.streak, last_result.clearance], 20)
+	if not profile.warning.is_empty():
 		text(col, profile.warning, 16, Color("ffbe91"))
 	if stage + 1 < Course.STAGES.size() and stage + 1 < unlocked_stage_count():
-		button(col, "Continue to next stage", func():
+		button(col, "Next stage", func():
 			stage += 1
 			start_run())
 	button(col, "Fly again", start_run)
-	button(col, "Return to hangar", show_menu)
+	button(col, "Hangar", show_menu)
 
 func _physics_process(dt: float):
 	if state != "FLYING":
@@ -614,7 +677,7 @@ func _physics_process(dt: float):
 		course.mark_gate(next_gate, success)
 		audio.play_cue("pass" if success else "miss")
 		next_gate += 1
-		message = ("CENTERED PASS" if distance < radius * 0.35 else "CLEAN PASS") + "  /  STREAK %d" % streak if success else "GATE MISSED  /  Reset your approach"
+		message = ("CENTERED" if distance < radius * 0.35 else "PASS") + "  /  STREAK %d" % streak if success else "MISSED"
 		message_time = 2.0
 		if next_gate == Course.GATE_COUNT:
 			finish_run("Course complete. Make the next line cleaner.", true)
@@ -639,12 +702,12 @@ func _process(dt: float):
 		audio.update_engine(last_command.w, flight.speed / FlightModel.VEHICLES[vehicle].max_speed, vehicle, dt)
 		update_camera(dt)
 		message_time -= dt
-		telemetry.text = "%s  /  %s       %.0f m/s       ALT %.0f m       THR %.0f%%" % [Course.PLANETS[planet].name, FlightModel.VEHICLES[vehicle].name, flight.speed, flight.position.y, last_command.w * 100]
-		progress_label.text = "STAGE %d  /  GATE %02d OF %02d     PASSED %02d     STREAK %d     %.1f s" % [stage + 1, mini(next_gate + 1, Course.GATE_COUNT), Course.GATE_COUNT, hits, streak, flight.time]
+		telemetry.text = "%.0f m/s   ·   ALT %.0f m   ·   POWER %.0f%%" % [flight.speed, flight.position.y, last_command.w * 100]
+		progress_label.text = "GATE %02d / %02d   ·   %d passed   ·   %.0f s" % [mini(next_gate + 1, Course.GATE_COUNT), Course.GATE_COUNT, hits, flight.time]
 		if next_gate < course.gates.size():
 			hud.target_visible = not camera.is_position_behind(course.gates[next_gate])
 			hud.target_screen = camera.unproject_position(course.gates[next_gate]) if hud.target_visible else Vector2.ZERO
-		notice.text = message if message_time > 0 else ""
+		notice.text = "STALL · Lower nose" if flight.stalled else (message if message_time > 0 else "")
 	elif state == "MENU":
 		update_camera(dt)
 	if is_instance_valid(engine_flare):
@@ -675,7 +738,7 @@ func update_camera(dt: float):
 		offset = Vector3(13, 7, 19)
 	var target = flight.position + offset
 	camera.position = camera.position.lerp(target, clampf(dt * 5, 0, 1)) if dt < 1 else target
-	camera.look_at(flight.position + Vector3(0, 1, -14))
+	camera.look_at(flight.position + flight.forward_vector() * 14 + Vector3.UP)
 
 func _unhandled_key_input(event: InputEvent):
 	if not event is InputEventKey or not event.pressed or event.echo:
@@ -684,7 +747,7 @@ func _unhandled_key_input(event: InputEvent):
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN)
 	if event.keycode == KEY_ESCAPE:
 		if state == "FLYING":
-			pause_run("Paused by pilot.")
+			pause_run("Ready when you are.")
 		elif state == "PAUSED":
 			resume_run()
 		elif state == "RESULTS" or calibration_open:
