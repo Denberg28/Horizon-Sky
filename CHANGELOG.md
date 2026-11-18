@@ -1,3 +1,9 @@
+## 0.1.0-rc.4 — Android candidate
+
+- Ported shared Godot gameplay to Android ARM64 with explicit two-finger touch authority, landscape controls, app focus pause and a touch guide.
+- Added Android APK export with automated package/signature checks, while preserving Windows release and regression checks.
+- Debug signing key is temporary; physical Android performance and controller tests remain unverified.
+
 ## 0.1.0-rc.3 — 2026-11-18
 
 - Added three progressively harder training stages per world and craft: Foundations, Crosswind and Debris Run, with explicit score-based unlocking.

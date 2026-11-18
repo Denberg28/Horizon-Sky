@@ -4,6 +4,7 @@ const Radio = preload("res://scripts/radio_input.gd")
 const Course = preload("res://scripts/course.gd")
 const Store = preload("res://scripts/profile_store.gd")
 const Main = preload("res://scripts/main.gd")
+const Touch = preload("res://scripts/touch_controls.gd")
 var failures = 0
 var checks = 0
 
@@ -86,6 +87,19 @@ func run():
 	check(not radio.valid_mapping(bad), "insufficient calibration travel rejected")
 	bad[0].min = "bad"
 	check(not radio.valid_mapping(bad), "malformed saved mapping rejected")
+	radio.select_touch()
+	check(radio.touch_mode and radio.connected() and not radio.keyboard, "touch authority explicitly selected")
+	radio.set_touch_command(Vector4(2, -2, 2, 2))
+	check(radio.read(0) == Vector4(1, -1, 1, 1), "touch input bounded")
+	var touch = Touch.new()
+	touch.size = Vector2(1280, 800)
+	check(touch.touch(1, true, touch.left_center() + Vector2(35, -35)), "left pad responds")
+	check(touch.touch(2, true, touch.right_center() + Vector2(35, 35)), "simultaneous right pad responds")
+	check(touch.command().x > 0 and touch.command().y > 0 and touch.command().z > 0 and touch.command().w > 0.5, "four channels mapped independently")
+	touch.touch(1, false, Vector2.ZERO)
+	touch.touch(2, false, Vector2.ZERO)
+	check(touch.command().x == 0 and touch.command().y == 0 and touch.command().z == 0 and touch.command().w > 0.5, "release centers axes and preserves throttle")
+	touch.free()
 	radio.select_radio(99)
 	radio.calibrated = true
 	send_key(KEY_RIGHT, true)

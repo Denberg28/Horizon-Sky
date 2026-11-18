@@ -1,9 +1,7 @@
-Horizon Sky 0.1.0-rc.3 — TEST CANDIDATE
+Horizon Sky 0.1.0-rc.4 — Windows and Android test candidate
 
-Progression update: 3 stages for each world/craft pairing. Foundations retains the legacy flight-log key. Score 55+ to unlock Crosswind and 65+ in Crosswind for Debris Run. Stage two increases wind and narrows gates; stage three adds deterministic moving low-poly debris. All stages retain 16 gates; no real-world aviation qualification is implied.
+Adds Android ARM64 landscape debug APK with two virtual sticks: left yaw/throttle, right bank/pitch. Touch controls do not take over automatically from a selected USB radio. Pause button and focus loss freeze gameplay. The existing Windows version and save schema are preserved.
 
-UI and visuals: responsive scrollable hangar, controller lab, pause and debrief; readable stage log; next-gate aim indicator, artificial horizon, streak and route progress, animated engine flare. Input authority, USB radio calibration, frozen pause on device/focus loss, backups and offline operation are unchanged.
+CI validates Godot import, automated tests, Windows package/startup and Android export/signature before publishing. Debug APK signing uses an ephemeral test key, not an upgrade-stable production identity. Android interactive performance, radio USB compatibility, and hardware input latency remain untested. Not a flight certification or stable Android release.
 
-Publication requires automated Godot import/tests/source checks, export/package verification and Windows headless smoke. Real radio HIL, interactive Windows performance, pilot training efficacy and target hardware compatibility remain unvalidated. This is a prerelease for controlled testing, not stable.
-
-Install by extracting ZIP alongside PCK; keep previous rc.2 and backups of pilot.json/pilot.backup.json for rollback. Windows 10/11 x86_64/OpenGL 3.3 and Godot 4.6.3 are the targets; executable remains unsigned.
+Install the attached APK by sideloading it on an Android ARM64 device. Newer APKs signed by a different key may require uninstall, which can delete local game progress. Use the previous rc.3 Windows release for rollback.
