@@ -32,3 +32,7 @@ Baseline `9bb7072` / rc.5. User screenshots demonstrate letterboxed landscape di
 ## rc.7 scope
 
 User requests larger sticks, throttle acceleration/deceleration, a simple lower-center fighter-style HUD, varied/randomized tracks and a freely redistributable space-game sound pack for adventure. Retain explicit input authority, pause/recovery, profile compatibility and candidate gates. Credits must be available in-game, and bundled audio must be source/hash/license pinned. Random courses must remain within documented geometric limits and provide an exact retry.
+
+## rc.8 scope
+
+Add visible contrails on speed-up and power-responsive exhaust, with craft-appropriate game speed envelopes. Keep trails bounded, read-only and tied to actual simulation motion/spool; retain pause/reset behavior and existing controller/profile/release gates. Default choice: slower forgiving trainer, faster jet, higher-speed assisted spacecraft; no claim of real-world speed validation.

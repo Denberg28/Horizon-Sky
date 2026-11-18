@@ -14,6 +14,7 @@ Native Godot Compatibility/OpenGL scene, original geometry, 120 Hz fixed simulat
 | course.gd | Seeded terrain/gates/pylons; analytic ground/cone-envelope contact |
 | profile_store.gd | Schema-validated bounded JSON, temp/readback/backup/replace and recoverable errors |
 | hud.gd | Reticle and Mode-2-style stick monitors; no authority |
+| flight_effects.gd | World-space acceleration ribbons and craft-specific power exhaust; no control authority |
 | flight_audio.gd | Three generated PCM engine loops, four event tones, two bounded playback voices; no control authority |
 
 Only one input authority is selected. Missing radio returns zero and main freezes simulation before any further movement. No silent fallback/reconnect resume. Polling current engine state each tick avoids queued app commands. GUID/name guard against unrelated device-slot reuse; identical devices remain indistinguishable. Reselection must validate a saved mapping or calibrate anew.
@@ -45,3 +46,11 @@ Audio uses three bounded voices: sampled engine loop, replaceable event cue and 
 Route generation has an independent seeded RNG and five pattern families, with stage-bounded lateral/vertical increments, varying 98–126 m spacing, an approachable first gate and at least 24 m analytic terrain clearance. Scenery and stage-three hazard shape/motion vary reproducibly with the same seed. `start_run(true)` chooses a new seed; `start_run(false)` preserves it. Debrief records the seed/family in the existing schema-1 last result; world/craft/stage score keys are retained. Rebuilding menus or resizing never changes the current seed or adds another attempt.
 
 The lower-center HUD uses a bounded instrument rectangle between enlarged line-stick hitboxes. Compass/attitude/speed/altitude/power/vertical speed and actual speed-change-per-second are read-only. It is game feedback, not certified avionics.
+
+## rc.8 speed and visual effects
+
+Cruise / maximum game speeds (m/s): Kestrel 24/42, Peregrine 50/96, Nomad 42/115. Atmospheric trim is recalculated from each cruise speed, while stall parameters retain wing-loading behavior. Nomad's assisted axial acceleration/braking bounds are +22/-26 m/s² to suit its higher range. These are gameplay envelopes, not real aircraft limits.
+
+`flight_effects.gd` consumes a read-only world pose, actual speed, actual engine power and actual speed derivative at the physics step. Two vertex-alpha ImmediateMesh ribbons retain wingtip samples in world space at 30 Hz, with one shared 64-sample cap and 1.4-second lifetime. Each point stores its own width axis, age and intensity; chain IDs prevent connecting separate acceleration bursts. Positive acceleration and sufficient speed gate emission; throttling at a steady cap does not create new trails. No trail physics, control authority, texture assets or particle-system dependency is added.
+
+Exhaust uses one trainer/jet or two spacecraft procedural taper meshes. Actual engine power controls smoothed length, radius, alpha and emission, with small simulation-time flicker. Trainer wash is faint and non-emissive. Main drives effects from fixed simulation time; pause hides/suspends them and menu/results/new flight clear the buffer. Sampled engine sound also reads actual spool power rather than the requested throttle. Rendering is bounded and uses the existing Compatibility renderer; target-device performance remains unmeasured.

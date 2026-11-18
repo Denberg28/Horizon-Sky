@@ -6,7 +6,8 @@ const Course = preload("res://scripts/course.gd")
 const HUD = preload("res://scripts/hud.gd")
 const TouchControls = preload("res://scripts/touch_controls.gd")
 const FlightAudio = preload("res://scripts/flight_audio.gd")
-const VERSION = "0.1.0-rc.7"
+const FlightEffects = preload("res://scripts/flight_effects.gd")
+const VERSION = "0.1.0-rc.8"
 const INK = Color("101e2c")
 const MINT = Color("b4ffcc")
 var flight = FlightModel.new()
@@ -15,7 +16,7 @@ var profile = ProfileStore.new()
 var audio: Node
 var course: Node3D
 var craft: Node3D
-var engine_flare: MeshInstance3D
+var effects: Node3D
 var camera: Camera3D
 var environment: WorldEnvironment
 var ui: Control
@@ -98,6 +99,8 @@ func build_world():
 	course.build(planet, stage, route_seed)
 	craft = Node3D.new()
 	add_child(craft)
+	effects = FlightEffects.new()
+	add_child(effects)
 	build_craft()
 	camera = Camera3D.new()
 	camera.fov = 70
@@ -127,18 +130,7 @@ func build_craft():
 	mat.vertex_color_use_as_albedo = true
 	mesh.material_override = mat
 	craft.add_child(mesh)
-	var engine = MeshInstance3D.new()
-	var flame = CylinderMesh.new()
-	flame.top_radius = 0.22
-	flame.bottom_radius = 0.03
-	flame.height = 1.5
-	flame.radial_segments = 6
-	engine.mesh = flame
-	engine.rotation_degrees.x = 90
-	engine.position = Vector3(0, 0, 3)
-	engine.material_override = Course.material(MINT, true)
-	craft.add_child(engine)
-	engine_flare = engine
+	effects.configure(vehicle, span)
 
 func update_palette():
 	environment.environment.background_color = Course.PLANETS[planet].sky
@@ -213,6 +205,8 @@ func build_ui():
 	layout_hud()
 
 func sync_flight_state():
+	if effects != null:
+		effects.set_active(state == "FLYING", state in ["MENU", "RESULTS", "EXITING"])
 	if audio != null:
 		audio.set_flying(state == "FLYING" and focus_ok)
 	if touch_controls == null:
@@ -403,7 +397,7 @@ func show_menu():
 	text(col, "Aircraft", 16, Color("a9bbc4"))
 	var craft_names = []
 	for v in FlightModel.VEHICLES:
-		craft_names.append(v.name + " · " + v.role)
+		craft_names.append(v.name + " · " + v.role + " · %d m/s" % v.cruise_speed)
 	var craft_select = choice(col, craft_names, vehicle)
 	craft_select.item_selected.connect(func(i):
 		vehicle = i
@@ -579,6 +573,7 @@ func start_run(new_route: bool = true):
 		route_seed = next_seed if next_seed != route_seed else (next_seed % 2147483646) + 1
 	audio.start_session(stage)
 	flight.reset(vehicle)
+	effects.reset()
 	radio.throttle = 0.35
 	touch_controls.reset_for_run()
 	radio.set_touch_command(touch_controls.command())
@@ -685,6 +680,8 @@ func _physics_process(dt: float):
 	last_command = command
 	var previous: Vector3 = flight.position
 	flight.step(command, dt, course.wind_strength())
+	var pose = Transform3D(Basis.from_euler(Vector3(flight.pitch, -flight.heading, flight.roll)), flight.position)
+	effects.step(pose, flight.speed, flight.engine_power, flight.longitudinal_acceleration, FlightModel.VEHICLES[vehicle].cruise_speed, FlightModel.VEHICLES[vehicle].max_speed, dt)
 	course.update_hazards(dt)
 	minimum_clearance = minf(minimum_clearance, flight.position.y - Course.ground_height(flight.position.x, flight.position.z))
 	if course.collision(flight.position):
@@ -729,7 +726,7 @@ func _process(dt: float):
 			var raw = Input.get_joy_axis(radio.device, int(radio.mapping[i].axis)) if not radio.keyboard and radio.connected() else 0.0
 			config_rows[i].text = "%+.2f raw   →   %+.2f output" % [raw, values[i]]
 	if state == "FLYING":
-		audio.update_engine(last_command.w, flight.speed / FlightModel.VEHICLES[vehicle].max_speed, vehicle, dt)
+		audio.update_engine(flight.engine_power, flight.speed / FlightModel.VEHICLES[vehicle].max_speed, vehicle, dt)
 		update_camera(dt)
 		message_time -= dt
 		telemetry.text = "%s · %s" % [FlightModel.VEHICLES[vehicle].name, Course.PLANETS[planet].name]
@@ -745,9 +742,6 @@ func _process(dt: float):
 		notice.text = "STALL · Lower nose" if flight.stalled else (message if message_time > 0 else "")
 	elif state == "MENU":
 		update_camera(dt)
-	if is_instance_valid(engine_flare):
-		var thrust = last_command.w if state == "FLYING" else 0.28
-		engine_flare.scale.y = 0.6 + thrust * 1.35 + sin(float(frames) * 0.34) * 0.08
 	hud.queue_redraw()
 	if not capture_path.is_empty() and frames == 30:
 		await RenderingServer.frame_post_draw

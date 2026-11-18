@@ -4,16 +4,16 @@ const GRAVITY = 9.81
 const DENSITY = 1.225
 # Handling tuning: trainer stability, jet wing loading/spool, spacecraft thrusters.
 const VEHICLES = [
-	{"name": "Kestrel", "role": "Trainer", "cruise_speed": 32.0, "stall_speed": 14.0, "max_speed": 55.0, "mass": 8.0, "area": 0.5, "cl_alpha": 4.8, "cl_max": 1.35, "cd0": 0.045, "induced_drag": 0.07, "stall_angle": 0.28, "roll_rate": 1.5, "pitch_rate": 0.7, "yaw_rate": 0.35, "stability": 2.3, "dihedral": 0.45, "engine_response": 5.0, "side_damping": 2.8},
-	{"name": "Peregrine", "role": "Jet", "cruise_speed": 50.0, "stall_speed": 25.0, "max_speed": 88.0, "mass": 14.0, "area": 0.32, "cl_alpha": 3.8, "cl_max": 1.15, "cd0": 0.03, "induced_drag": 0.08, "stall_angle": 0.23, "roll_rate": 2.8, "pitch_rate": 1.0, "yaw_rate": 0.22, "stability": 1.4, "dihedral": 0.025, "engine_response": 1.3, "side_damping": 3.8},
-	{"name": "Nomad", "role": "Spacecraft", "cruise_speed": 30.0, "max_speed": 64.0, "roll_rate": 1.6, "pitch_rate": 0.9, "yaw_rate": 0.8}
+	{"name": "Kestrel", "role": "Trainer", "cruise_speed": 24.0, "stall_speed": 14.0, "max_speed": 42.0, "mass": 8.0, "area": 0.5, "cl_alpha": 4.8, "cl_max": 1.35, "cd0": 0.045, "induced_drag": 0.07, "stall_angle": 0.28, "roll_rate": 1.5, "pitch_rate": 0.7, "yaw_rate": 0.35, "stability": 2.3, "dihedral": 0.45, "engine_response": 5.0, "side_damping": 2.8},
+	{"name": "Peregrine", "role": "Jet", "cruise_speed": 50.0, "stall_speed": 25.0, "max_speed": 96.0, "mass": 14.0, "area": 0.32, "cl_alpha": 3.8, "cl_max": 1.15, "cd0": 0.03, "induced_drag": 0.08, "stall_angle": 0.23, "roll_rate": 2.8, "pitch_rate": 1.0, "yaw_rate": 0.22, "stability": 1.4, "dihedral": 0.025, "engine_response": 1.3, "side_damping": 3.8},
+	{"name": "Nomad", "role": "Spacecraft", "cruise_speed": 42.0, "max_speed": 115.0, "roll_rate": 1.6, "pitch_rate": 0.9, "yaw_rate": 0.8}
 ]
 var position = Vector3(0, 45, 30)
 var pitch = 0.0
 var roll = 0.0
 var heading = 0.0
 var velocity = Vector3.ZERO
-var speed = 32.0
+var speed = 24.0
 var time = 0.0
 var vehicle = 0
 var angular_velocity = Vector3.ZERO
@@ -109,7 +109,7 @@ func _step_space(c: Vector4, dt: float):
 	var forward = forward_vector()
 	var target_speed = lerpf(0, v.cruise_speed, c.w / 0.35) if c.w <= 0.35 else lerpf(v.cruise_speed, v.max_speed, (c.w - 0.35) / 0.65)
 	var axial_speed = velocity.dot(forward)
-	var axial_acceleration = clampf((target_speed - axial_speed) * 2.0, -18, 14)
+	var axial_acceleration = clampf((target_speed - axial_speed) * 2.0, -26, 22)
 	var sideways = velocity - forward * axial_speed
 	velocity = (velocity + (forward * axial_acceleration - sideways * 0.9) * dt).limit_length(v.max_speed)
 	stalled = false

@@ -5,6 +5,7 @@ const Course = preload("res://scripts/course.gd")
 const Store = preload("res://scripts/profile_store.gd")
 const Main = preload("res://scripts/main.gd")
 const Touch = preload("res://scripts/touch_controls.gd")
+const FlightEffects = preload("res://scripts/flight_effects.gd")
 const FlightAudio = preload("res://scripts/flight_audio.gd")
 var failures = 0
 var checks = 0
@@ -119,11 +120,11 @@ func run():
 	model.reset(0)
 	for n in range(120):
 		model.step(Vector4(0, 0, 0, 0.35), 1.0 / 120)
-	check(model.position.z < 0 and absf(model.position.x) < 0.01 and is_equal_approx(model.position.y, 45), "neutral flight tracks straight and level")
+	check(model.position.z < 10 and absf(model.position.x) < 0.01 and is_equal_approx(model.position.y, 45), "neutral flight tracks straight and level")
 	model.reset(0)
 	for n in range(240):
 		model.step(Vector4(0.6, 0.4, 0, 0.5), 1.0 / 120)
-	check(model.position.x > 2 and model.position.y > 50 and model.roll < 0, "bank right turns right; pitch climbs")
+	check(model.position.x > 2 and model.position.y > 47 and model.roll < 0, "bank right turns right; pitch climbs")
 	var before: Vector3 = model.position
 	model.step(Vector4(INF, 0, 0, 0), 0.01)
 	model.step(Vector4.ONE, 1.0)
@@ -204,6 +205,54 @@ func run():
 	for n in range(120): coarse.step(Vector4(0.12, 0.08, 0, 0.4), 1.0 / 60)
 	for n in range(240): fine.step(Vector4(0.12, 0.08, 0, 0.4), 1.0 / 120)
 	check(coarse.position.distance_to(fine.position) < 0.5, "force integration stays consistent across 60/120 Hz")
+	# Craft-specific speed envelopes: trainer is slower; speed limits still hold in dives.
+	check(Flight.VEHICLES[0].cruise_speed < Flight.VEHICLES[1].cruise_speed and Flight.VEHICLES[0].max_speed < Flight.VEHICLES[1].max_speed and Flight.VEHICLES[1].max_speed < Flight.VEHICLES[2].max_speed, "trainer, jet and spacecraft have distinct speed envelopes")
+	for kind in range(3):
+		model.reset(kind)
+		model.velocity = Vector3(0, -150, -150)
+		for n in range(120): model.step(Vector4(0, -0.2, 0, 1), 1.0 / 120)
+		check(model.speed <= Flight.VEHICLES[kind].max_speed + 0.001, "craft %d dive remains inside configured speed limit" % kind)
+	var fx = FlightEffects.new()
+	root.add_child(fx)
+	fx.configure(1, 3.2)
+	fx.set_active(true)
+	var pose = Transform3D(Basis.IDENTITY, Vector3(0, 45, 30))
+	for n in range(60): fx.step(pose, 50, 0.1, 0, 50, 96, 1.0 / 120)
+	var low_length: float = fx.plumes[0].scale.y
+	var low_alpha: float = fx.plume_material.albedo_color.a
+	for n in range(240):
+		pose.origin.z -= 0.5
+		fx.step(pose, 64, 1, 3, 50, 96, 1.0 / 120)
+	check(fx.plumes[0].scale.y > low_length and fx.plume_material.albedo_color.a > low_alpha and fx.plume_material.emission_energy_multiplier > 2, "jet exhaust length, opacity and emission rise with actual engine power")
+	check(fx.samples.size() > 2 and fx.ribbons[0].mesh.get_surface_count() > 0 and fx.ribbons[1].mesh.get_surface_count() > 0, "speed-up generates both world-space contrail ribbons")
+	check(fx.samples[0].left.z > fx.samples[-1].left.z, "contrails retain the travelled path behind the aircraft")
+	check(fx.samples.size() <= FlightEffects.MAX_SAMPLES and fx.samples[0].age < FlightEffects.TRAIL_LIFETIME, "contrail sample count and lifetime stay bounded")
+	var paused_phase: float = fx.phase
+	var paused_age: float = fx.samples[0].age
+	fx.set_active(false)
+	fx.step(pose, 70, 1, 4, 50, 96, 0.1)
+	check(fx.phase == paused_phase and fx.samples[0].age == paused_age and not fx.visible, "paused effects freeze without advancing exhaust or trail age")
+	fx.set_active(true)
+	for n in range(240): fx.step(pose, 50, 0.1, -2, 50, 96, 1.0 / 120)
+	check(fx.samples.is_empty() and fx.ribbons[0].mesh.get_surface_count() == 0, "deceleration stops new contrails and old ribbons fade away")
+	fx.reset()
+	for n in range(120): fx.step(pose, 96, 1, 0, 50, 96, 1.0 / 120)
+	check(fx.samples.is_empty() and fx.engine_level > 0.9, "steady maximum speed keeps powered exhaust without false speed-up trails")
+	fx.reset()
+	for n in range(120): fx.step(pose, 0, 1, 4, 50, 96, 1.0 / 120)
+	check(fx.samples.is_empty() and fx.plumes[0].visible, "stationary power can light exhaust without painting a contrail")
+	fx.configure(0, 4.4)
+	for n in range(120): fx.step(pose, 32, 1, 4, 24, 42, 1.0 / 120)
+	check(not fx.plume_material.emission_enabled and fx.plume_material.albedo_color.a <= 0.161, "trainer uses subtle propwash rather than a jet flame")
+	fx.configure(2, 3.6)
+	for n in range(120): fx.step(pose, 64, 1, 4, 42, 115, 1.0 / 120)
+	check(fx.plumes.size() == 2 and fx.plumes[0].position.x < 0 and fx.plumes[1].position.x > 0, "spacecraft has paired high-power exhaust plumes")
+	fx.set_active(false, true)
+	check(fx.samples.is_empty() and fx.engine_level == 0 and fx.trail_level == 0, "menu/results/restart clears all prior flight effects")
+	fx.set_active(true)
+	fx.step(pose, INF, 1, 3, 50, 96, 0.01)
+	check(fx.phase == 0, "nonfinite visual inputs are rejected without geometry corruption")
+	fx.queue_free()
 	check(Flight.crossing_distance(Vector3(0, 45, 1), Vector3(0, 45, -1), Vector3(0, 45, 0)) == 0, "swept gate crossing detects center pass")
 	check(is_equal_approx(Flight.crossing_distance(Vector3(0, 0, 2), Vector3(4, 0, -2), Vector3.ZERO), 2), "gate crossing interpolates movement")
 	check(Flight.crossing_distance(Vector3(0, 0, -1), Vector3(0, 0, 1), Vector3.ZERO) == -1, "reverse crossing does not score")
@@ -354,6 +403,7 @@ func run():
 	for n in range(20):
 		game._physics_process(1.0 / 120)
 	check(game.state == "PAUSED" and game.flight.position == paused_position, "pause freezes movement")
+	check(not game.effects.active and not game.effects.visible, "game pause hides and suspends flight effects")
 	game.focus_ok = true
 	game.resume_run()
 	check(game.state == "FLYING", "explicit keyboard resume succeeds")
@@ -370,6 +420,7 @@ func run():
 	game.flight.position = Vector3(0, -10, 0)
 	game._physics_process(1.0 / 120)
 	check(game.state == "RESULTS" and not game.last_result.completed, "terrain impact produces debrief")
+	check(game.effects.samples.is_empty() and not game.effects.visible, "debrief clears active trail/exhaust output")
 	game.start_run()
 	for gate in range(16):
 		game.flight.position = game.course.gates[gate] + Vector3(0, 0, 0.1)
