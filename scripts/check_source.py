@@ -14,5 +14,6 @@ assert 'codesign/enable=false' in (root / 'export_presets.cfg').read_text()
 assert '4.6.3' in (root / '.github/workflows/candidate.yml').read_text()
 version = re.search(r'config/version="([^"]+)"', (root / 'project.godot').read_text())[1]
 assert f'const VERSION = "{version}"' in (root / 'scripts/main.gd').read_text()
+assert f'version/name="{version}"' in (root / 'export_presets.cfg').read_text(), 'Android version must match game version'
 assert 'Input.get_joy_axis' in (root / 'scripts/radio_input.gd').read_text()
 print('PASS: source/configuration/accidental-secret checks')

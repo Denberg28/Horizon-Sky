@@ -1,3 +1,13 @@
+# Changelog
+
+## 0.1.0-rc.5 — 2026-11-19
+
+- Added original synthesized engine loops for all three craft, responding smoothly to throttle and speed, plus gate pass/miss and debrief tones.
+- Added saved sound presets in hangar and pause; older schema-1 profiles keep their records and default to Balanced.
+- Pause, focus/device loss, menu return and shutdown stop flight audio; muting stops all voices immediately.
+- Added sound synthesis, lifecycle and preference recovery checks; Android package metadata now matches the new game version.
+- Candidate only; target Windows/Android listening, performance and physical USB validation remain unverified.
+
 ## 0.1.0-rc.4 — Android candidate
 
 - Ported shared Godot gameplay to Android ARM64 with explicit two-finger touch authority, landscape controls, app focus pause and a touch guide.
@@ -12,8 +22,6 @@
 - Reworked hangar, calibration, pause and debrief to use bounded, scrollable panels with cleaner spacing and a readable flight log.
 - Preserved 16-gate legacy Foundations records, schema-1 save compatibility and explicit USB input authority / freeze-on-loss safety.
 - Extended simulated route, collision, hazard motion and unlock regression checks; physical USB and Windows interactive acceptance remain required for stable.
-
-# Changelog
 
 ## 0.1.0-rc.2 — 2026-11-07
 

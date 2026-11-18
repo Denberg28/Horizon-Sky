@@ -2,7 +2,7 @@
 
 **A small world. A sharper pilot.** An offline Windows flight-skills game for USB radio controllers, with original procedural polygon art.
 
-**0.1.0-rc.2 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is an arcade training game, not a certified simulator or proof of real flight proficiency.
+**0.1.0-rc.5 — TEST CANDIDATE.** Physical radio compatibility and interactive Windows graphics/performance remain unvalidated. This is an arcade training game, not a certified simulator or proof of real flight proficiency.
 
 ## Play
 
@@ -36,6 +36,10 @@ Choose **Foundations** (wide gates), **Crosswind** (narrower gates and increased
 The shared offline Godot game now supports Android ARM64 in landscape orientation. Download the APK from the rc.4 GitHub prerelease and install it through the Android browser/file manager. On-screen touch controls are the supported Android input: left pad for yaw/throttle and right for bank/pitch, with a visible PAUSE button. Throttle holds its setting on release; other axes return to neutral. Loss of app focus pauses the game.
 
 This is a **debug-signed test APK**, not a Play Store or stable build. The CI test signing key is temporary and differs between builds. An Android upgrade may require uninstalling the old test APK, which can erase local saves. Android radio/controller compatibility and real phone performance have not been verified. The Android pilot save is independent of the Windows save.
+
+## Flight sound (rc.5)
+
+Each craft has an original synthesized engine loop whose pitch follows throttle and airspeed. Short tones signal gate passes, misses, course completion and failed runs. Choose **Muted**, **Quiet**, **Balanced** (default), **Loud** or **Full** in the hangar or pause panel; the preference saves locally. Pausing, losing app focus or disconnecting the selected radio stops flight audio immediately. Returning focus does not resume it. There are no audio downloads or music tracks.
 
 ## Compatibility and storage
 
