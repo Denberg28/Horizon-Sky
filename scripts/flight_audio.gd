@@ -48,6 +48,7 @@ func start_session(stage: int):
 	current_stage = clampi(stage, 0, tracks.size() - 1)
 	set_flying(false)
 	music.stream = tracks[current_stage]
+	music.pitch_scale = 1.0
 	music_position = 0.0
 
 func set_volume(value: float):
@@ -69,6 +70,7 @@ func set_volume(value: float):
 func set_flying(active: bool):
 	flying = active
 	if not active and engine != null:
+		music.pitch_scale = 1.0
 		pending_cue = ""
 		pending_engine = false
 		if music.playing:
@@ -86,6 +88,9 @@ func update_engine(throttle: float, speed_fraction: float, vehicle: int, dt: flo
 	var target = 0.75 + clampf(throttle, 0, 1) * 0.55 + clampf(speed_fraction, 0, 1) * 0.15
 	engine.pitch_scale = lerpf(engine.pitch_scale, target, 1.0 - exp(-maxf(dt, 0) * 5.0))
 	engine.volume_db = linear_to_db(maxf(volume * lerpf(0.10, 0.30, clampf(throttle, 0, 1)), 0.0001))
+	var flow_energy = clampf(speed_fraction, 0.0, 1.0)
+	music.volume_db = linear_to_db(maxf(volume * lerpf(0.16, 0.24, flow_energy), 0.0001))
+	music.pitch_scale = lerpf(music.pitch_scale, lerpf(0.985, 1.035, flow_energy), 1.0 - exp(-maxf(dt, 0.0) * 2.5))
 	pending_engine = true
 
 func play_cue(event: String):
