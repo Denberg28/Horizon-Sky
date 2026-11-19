@@ -44,7 +44,7 @@ focus_blobs = {
 assert {p.name for p in audio.glob('*.wav')} == set(focus_blobs)
 for filename, expected in focus_blobs.items():
     payload = (audio / filename).read_bytes()
-    blob = hashlib.sha1(b'blob ' + str(len(payload)).encode() + b'\\0' + payload).hexdigest()
+    blob = hashlib.sha1(b'blob ' + str(len(payload)).encode() + bytes([0]) + payload).hexdigest()
     assert blob == expected, f'Focus soundtrack modified: {filename}'
     with wave.open(str(audio / filename), 'rb') as wav:
         assert wav.getnchannels() == 1 and wav.getframerate() == 12000
