@@ -1,11 +1,12 @@
 extends RefCounted
-## Reduced-order force model: metres, seconds, radians. Original, not an RC8 engine port.
+## Fixed wing — reduced-order aerodynamic force model; metres, seconds, radians.
+## Proportional surface rates, energy loss, dynamic pressure and real stall; not RC8 code.
 const GRAVITY = 9.81
 const DENSITY = 1.225
 # Handling tuning: trainer stability, jet wing loading/spool, spacecraft thrusters.
 const VEHICLES = [
-	{"name": "Kestrel", "role": "Trainer", "cruise_speed": 24.0, "stall_speed": 14.0, "max_speed": 42.0, "mass": 8.0, "area": 0.5, "cl_alpha": 4.8, "cl_max": 1.35, "cd0": 0.045, "induced_drag": 0.07, "stall_angle": 0.28, "roll_rate": 1.5, "pitch_rate": 0.7, "yaw_rate": 0.35, "stability": 2.3, "dihedral": 0.45, "engine_response": 5.0, "side_damping": 2.8},
-	{"name": "Peregrine", "role": "Jet", "cruise_speed": 50.0, "stall_speed": 25.0, "max_speed": 96.0, "mass": 14.0, "area": 0.32, "cl_alpha": 3.8, "cl_max": 1.15, "cd0": 0.03, "induced_drag": 0.08, "stall_angle": 0.23, "roll_rate": 2.8, "pitch_rate": 1.0, "yaw_rate": 0.22, "stability": 1.4, "dihedral": 0.025, "engine_response": 1.3, "side_damping": 3.8},
+	{"name": "Kestrel", "role": "Trainer", "cruise_speed": 24.0, "stall_speed": 14.0, "max_speed": 42.0, "mass": 8.0, "area": 0.5, "cl_alpha": 4.8, "cl_max": 1.35, "cd0": 0.045, "induced_drag": 0.07, "stall_angle": 0.28, "roll_rate": 1.5, "pitch_rate": 0.7, "yaw_rate": 0.35, "stability": 1.7, "dihedral": 0.45, "engine_response": 5.0, "side_damping": 2.8},
+	{"name": "Peregrine", "role": "Jet", "cruise_speed": 50.0, "stall_speed": 25.0, "max_speed": 96.0, "mass": 14.0, "area": 0.32, "cl_alpha": 3.8, "cl_max": 1.15, "cd0": 0.03, "induced_drag": 0.08, "stall_angle": 0.23, "roll_rate": 2.8, "pitch_rate": 1.0, "yaw_rate": 0.22, "stability": 1.1, "dihedral": 0.025, "engine_response": 1.3, "side_damping": 3.8},
 	{"name": "Nomad", "role": "Spacecraft", "cruise_speed": 42.0, "max_speed": 115.0, "roll_rate": 1.6, "pitch_rate": 0.9, "yaw_rate": 0.8}
 ]
 var position = Vector3(0, 45, 30)
@@ -71,7 +72,8 @@ func _step_aircraft(c: Vector4, dt: float, wind: float):
 	var targets = Vector3(c.y * v.pitch_rate * authority - angle_of_attack * v.stability * authority,
 		c.z * v.yaw_rate * authority + wrapf(flow_heading - heading, -PI, PI) * 2.0,
 		-c.x * v.roll_rate * authority - roll * v.dihedral * (1.0 - absf(c.x)))
-	angular_velocity = angular_velocity.lerp(targets, 1.0 - exp(-dt * 12.0))
+	## Reduce artificial stick lag without removing aerodynamic rate damping.
+	angular_velocity = angular_velocity.lerp(targets, 1.0 - exp(-dt * 18.0))
 	pitch = clampf(pitch + angular_velocity.x * dt, -1.3, 1.3)
 	heading = wrapf(heading + angular_velocity.y * dt, -PI, PI)
 	roll = wrapf(roll + angular_velocity.z * dt, -PI, PI)

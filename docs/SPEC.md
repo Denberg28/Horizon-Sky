@@ -36,3 +36,9 @@ User requests larger sticks, throttle acceleration/deceleration, a simple lower-
 ## rc.8 scope
 
 Add visible contrails on speed-up and power-responsive exhaust, with craft-appropriate game speed envelopes. Keep trails bounded, read-only and tied to actual simulation motion/spool; retain pause/reset behavior and existing controller/profile/release gates. Default choice: slower forgiving trainer, faster jet, higher-speed assisted spacecraft; no claim of real-world speed validation.
+
+## rc.9 fixed-wing Mode 2 practice
+
+Primary target: muscle-memory practice for RC fixed-wing aircraft with AeroFly RC8-style Mode 2 stick motion, not a proprietary flight engine reproduction. Left: throttle vertical and rudder horizontal; right: elevator vertical (pull down/back = nose up) and aileron horizontal. All four axes require explicit USB mapping, inversion and endpoint validation on a RadioMaster Pocket. Initial HID indexes are placeholders, not a guaranteed EdgeTX mapping. Fixed-wing rate response is quicker, pitch automatic stabilization reduced, and the existing lift/gravity/drag/stall and prop/jet differences preserved. Spacecraft remains a game-only bonus.
+
+Three original 24-second low-register ambient WAV stage pieces replace the previous three looping orchestra files in active playback. Successful gates are silent to eliminate the repetitive note sound; sampled miss, impact and completion cues remain. Earlier CC BY tracks remain in source with attribution. Acceptance: compile/import, full regression suite, finite 100-second soak, radio/touch mapped Mode 2 inputs, audio decode and correct mute/pause/resume, no regressions to profile or device authority. USB HIL and actual pilot skill improvement remain unverified.

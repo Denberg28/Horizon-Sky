@@ -72,6 +72,7 @@ func run():
 	send_key(KEY_Q, false)
 	radio.throttle = 0.35
 	check(radio.valid_mapping(radio.mapping), "default axis mapping schema")
+	check(Radio.CHANNELS == ["Aileron / right X", "Elevator / right Y", "Rudder / left X", "Throttle / left Y"], "fixed-wing Mode 2 semantic channel labels")
 	var m: Dictionary = radio.mapping[0]
 	check(is_equal_approx(Radio.normalized(0, m), 0), "center is zero")
 	check(is_equal_approx(Radio.normalized(1, m), 1) and is_equal_approx(Radio.normalized(-1, m), -1), "full range reaches endpoints")
@@ -318,9 +319,9 @@ func run():
 	check(store.set_audio_volume(0) and store.audio_volume() == 0, "mute preference persists")
 	var sound = FlightAudio.new()
 	root.add_child(sound)
-	check(sound.engines.size() == 3 and sound.cues.size() == 4 and sound.tracks.size() == 3, "credited sampled engines, event cues and three stage music tracks load")
+	check(sound.engines.size() == 3 and sound.cues.size() == 4 and sound.tracks.size() == 3, "sampled engines, event cues and three original focus pieces load")
 	for stream in sound.engines + sound.cues.values() + sound.tracks:
-		check(stream is AudioStreamOggVorbis and stream.get_length() > 0.1, "bundled Ogg resource decodes with positive duration")
+		check((stream is AudioStreamOggVorbis or stream is AudioStreamWAV) and stream.get_length() > 0.1, "effects and original WAV tracks decode with positive duration")
 	sound.set_flying(true)
 	sound.update_engine(0, 0, 0, 1)
 	sound._process(0)
@@ -331,8 +332,8 @@ func run():
 	check(sound.engine.playing and sound.engine.pitch_scale > idle_pitch, "engine responds to thrust and speed")
 	sound.play_cue("pass")
 	sound._process(0)
-	check(sound.feedback.playing, "gate pass starts sampled audio feedback")
-	check(sound.music.playing, "flight starts orchestral stage music")
+	check(not sound.feedback.playing, "successful gate passes produce no repeating chirp")
+	check(sound.music.playing, "flight starts evolving ambient focus score")
 	sound.set_volume(0)
 	check(not sound.engine.playing and not sound.feedback.playing and not sound.music.playing, "mute immediately stops engine and cues")
 	sound.set_volume(0.45)

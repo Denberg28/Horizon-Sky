@@ -106,7 +106,7 @@ func _draw():
 		draw_circle(marker, 11, ink)
 		draw_circle(marker, 7, light)
 		draw_circle(marker, 2, Color.WHITE)
-		var caption = "POWER / YAW" if pad == 0 else "PITCH / BANK"
+		var caption = "THROTTLE / RUDDER" if pad == 0 else "ELEVATOR / AILERON"
 		var font = ThemeDB.fallback_font
 		var caption_pos = center + Vector2(-font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x * 0.5, t + 24)
 		draw_string_outline(font, caption_pos, caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, 5, ink)

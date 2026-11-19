@@ -1,6 +1,8 @@
 extends RefCounted
+## Mode 2 semantics: (aileron right X, elevator right Y, rudder left X, throttle left Y).
+## USB HID axis indices vary. Select and calibrate each axis; never auto-fallback.
 ## One selected input authority. No automatic fallback or resume.
-const CHANNELS = ["Roll", "Pitch", "Yaw", "Throttle"]
+const CHANNELS = ["Aileron / right X", "Elevator / right Y", "Rudder / left X", "Throttle / left Y"]
 var device = -1
 var keyboard = true
 var touch_mode = false
