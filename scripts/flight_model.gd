@@ -5,9 +5,9 @@ const GRAVITY = 9.81
 const DENSITY = 1.225
 # Handling tuning: trainer stability, jet wing loading/spool, spacecraft thrusters.
 const VEHICLES = [
-	{"name": "Kestrel", "role": "Trainer", "cruise_speed": 24.0, "stall_speed": 14.0, "max_speed": 42.0, "mass": 8.0, "area": 0.5, "cl_alpha": 4.8, "cl_max": 1.35, "cd0": 0.045, "induced_drag": 0.07, "stall_angle": 0.28, "roll_rate": 1.5, "pitch_rate": 0.7, "yaw_rate": 0.35, "stability": 1.7, "dihedral": 0.45, "engine_response": 5.0, "side_damping": 2.8},
-	{"name": "Peregrine", "role": "Jet", "cruise_speed": 50.0, "stall_speed": 25.0, "max_speed": 96.0, "mass": 14.0, "area": 0.32, "cl_alpha": 3.8, "cl_max": 1.15, "cd0": 0.03, "induced_drag": 0.08, "stall_angle": 0.23, "roll_rate": 2.8, "pitch_rate": 1.0, "yaw_rate": 0.22, "stability": 1.1, "dihedral": 0.025, "engine_response": 1.3, "side_damping": 3.8},
-	{"name": "Nomad", "role": "Spacecraft", "cruise_speed": 42.0, "max_speed": 115.0, "roll_rate": 1.6, "pitch_rate": 0.9, "yaw_rate": 0.8}
+	{"name": "Kestrel", "role": "Trainer", "cruise_speed": 24.0, "stall_speed": 14.0, "max_speed": 42.0, "mass": 8.0, "area": 0.5, "cl_alpha": 4.8, "cl_max": 1.35, "cd0": 0.045, "induced_drag": 0.07, "stall_angle": 0.28, "roll_rate": 2.15, "pitch_rate": 1.0, "yaw_rate": 0.62, "roll_response": 34.0, "pitch_response": 28.0, "yaw_response": 22.0, "propwash_authority": 0.22, "stability": 1.7, "dihedral": 0.45, "engine_response": 7.5, "side_damping": 2.8},
+{"name": "Peregrine", "role": "Jet", "cruise_speed": 50.0, "stall_speed": 25.0, "max_speed": 96.0, "mass": 14.0, "area": 0.32, "cl_alpha": 3.8, "cl_max": 1.15, "cd0": 0.03, "induced_drag": 0.08, "stall_angle": 0.23, "roll_rate": 3.85, "pitch_rate": 1.35, "yaw_rate": 0.38, "roll_response": 40.0, "pitch_response": 32.0, "yaw_response": 24.0, "propwash_authority": 0.08, "stability": 1.1, "dihedral": 0.025, "engine_response": 1.5, "side_damping": 3.8},
+{"name": "Nomad", "role": "Spacecraft", "cruise_speed": 42.0, "max_speed": 115.0, "roll_rate": 2.2, "pitch_rate": 1.25, "yaw_rate": 1.1, "roll_response": 24.0, "pitch_response": 22.0, "yaw_response": 20.0}
 ]
 var position = Vector3(0, 45, 30)
 var pitch = 0.0
@@ -67,13 +67,12 @@ func _step_aircraft(c: Vector4, dt: float, wind: float):
 	angle_of_attack = pitch - flight_path
 	stalled = absf(angle_of_attack) > v.stall_angle or airspeed < v.stall_speed
 	# Dynamic pressure limits surface authority; neutral damps rates, not velocity.
-	var authority = clampf(pow(airspeed / v.cruise_speed, 2), 0.08, 1.5)
+	var q_authority = clampf(pow(airspeed / v.cruise_speed, 1.65), 0.12, 1.55)
+	var tail_authority = clampf(q_authority + engine_power * v.propwash_authority, 0.12, 1.65)
 	var flow_heading = atan2(air_velocity.x, -air_velocity.z)
-	var targets = Vector3(c.y * v.pitch_rate * authority - angle_of_attack * v.stability * authority,
-		c.z * v.yaw_rate * authority + wrapf(flow_heading - heading, -PI, PI) * 2.0,
-		-c.x * v.roll_rate * authority - roll * v.dihedral * (1.0 - absf(c.x)))
+	var targets = Vector3(c.y * v.pitch_rate * tail_authority - angle_of_attack * v.stability * q_authority, c.z * v.yaw_rate * tail_authority + wrapf(flow_heading - heading, -PI, PI) * 2.0, -c.x * v.roll_rate * q_authority - roll * v.dihedral * (1.0 - absf(c.x)))
 	## Reduce artificial stick lag without removing aerodynamic rate damping.
-	angular_velocity = angular_velocity.lerp(targets, 1.0 - exp(-dt * 18.0))
+	angular_velocity = Vector3(lerpf(angular_velocity.x, targets.x, 1.0 - exp(-dt * v.pitch_response)), lerpf(angular_velocity.y, targets.y, 1.0 - exp(-dt * v.yaw_response)), lerpf(angular_velocity.z, targets.z, 1.0 - exp(-dt * v.roll_response)))
 	pitch = clampf(pitch + angular_velocity.x * dt, -1.3, 1.3)
 	heading = wrapf(heading + angular_velocity.y * dt, -PI, PI)
 	roll = wrapf(roll + angular_velocity.z * dt, -PI, PI)
@@ -102,7 +101,7 @@ func _step_aircraft(c: Vector4, dt: float, wind: float):
 
 func _step_space(c: Vector4, dt: float):
 	var v = VEHICLES[vehicle]
-	angular_velocity = angular_velocity.lerp(Vector3(c.y * v.pitch_rate, c.z * v.yaw_rate, -c.x * v.roll_rate), 1.0 - exp(-dt * 9.0))
+	angular_velocity = Vector3(lerpf(angular_velocity.x, c.y * v.pitch_rate, 1.0 - exp(-dt * v.pitch_response)), lerpf(angular_velocity.y, c.z * v.yaw_rate, 1.0 - exp(-dt * v.yaw_response)), lerpf(angular_velocity.z, -c.x * v.roll_rate, 1.0 - exp(-dt * v.roll_response)))
 	pitch = clampf(pitch + angular_velocity.x * dt, -1.3, 1.3)
 	heading = wrapf(heading + angular_velocity.y * dt, -PI, PI)
 	roll = wrapf(roll + angular_velocity.z * dt, -PI, PI)
