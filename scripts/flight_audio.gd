@@ -2,12 +2,13 @@ extends Node
 ## Bundled, credited game-audio packs. No generic oscillator synthesis or downloads.
 const ROOT = "res://assets/audio/"
 const ENGINE_SOURCES = [preload(ROOT + "engineCircular_000.ogg"), preload(ROOT + "spaceEngineLarge_000.ogg"), preload(ROOT + "thrusterFire_000.ogg")]
-const MUSIC_SOURCES = [preload(ROOT + "01_lift_off_a.ogg"), preload(ROOT + "03_racing_through_asteroids_loop.ogg"), preload(ROOT + "06_battle_in_space_loop.ogg")]
+## Original evolving low-register focus score; no distracting high-frequency repeated melody.
+const MUSIC_SOURCES = [preload(ROOT + "focus_1.wav"), preload(ROOT + "focus_2.wav"), preload(ROOT + "focus_3.wav")]
 var engine: AudioStreamPlayer
 var feedback: AudioStreamPlayer
 var music: AudioStreamPlayer
 var engines: Array[AudioStreamOggVorbis] = []
-var tracks: Array[AudioStreamOggVorbis] = []
+var tracks: Array[AudioStream] = []
 var cues: Dictionary = {}
 var volume = 0.45
 var flying = false
@@ -29,7 +30,10 @@ func _ready():
 		engines.append(loop)
 	for source in MUSIC_SOURCES:
 		var loop = source.duplicate()
-		loop.loop = true
+		if loop is AudioStreamWAV:
+			loop.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		else:
+			loop.loop = true
 		tracks.append(loop)
 	cues = {"pass": preload(ROOT + "forceField_000.ogg"), "miss": preload(ROOT + "impactMetal_003.ogg"), "complete": preload(ROOT + "forceField_004.ogg"), "impact": preload(ROOT + "explosionCrunch_002.ogg")}
 	music.stream = tracks[0]
@@ -53,7 +57,7 @@ func set_volume(value: float):
 	# Mix headroom: sampled engine, event and orchestral music share master volume.
 	engine.volume_db = linear_to_db(maxf(volume * 0.30, 0.0001))
 	feedback.volume_db = linear_to_db(maxf(volume * 0.35, 0.0001))
-	music.volume_db = linear_to_db(maxf(volume * 0.25, 0.0001))
+	music.volume_db = linear_to_db(maxf(volume * 0.20, 0.0001))
 	if volume == 0:
 		pending_cue = ""
 		pending_engine = false
@@ -85,7 +89,8 @@ func update_engine(throttle: float, speed_fraction: float, vehicle: int, dt: flo
 	pending_engine = true
 
 func play_cue(event: String):
-	if volume == 0 or not cues.has(event):
+	## No per-gate success chirp; preserve misses and important outcomes.
+	if event == "pass" or volume == 0 or not cues.has(event):
 		return
 	if not flying and event != "complete" and event != "impact":
 		return
