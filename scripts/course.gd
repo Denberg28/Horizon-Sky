@@ -1,8 +1,8 @@
 extends Node3D
 const PLANETS = [
-	{"name": "TERRA", "subtitle": "Verdant passage", "lesson": "Read terrain. Hold a clean line.", "sky": Color("b9d7d9"), "ground": Color("548d79"), "rock": Color("355868"), "accent": Color("b4ffcc"), "wind": 0.0},
-	{"name": "ARES", "subtitle": "The red escarpment", "lesson": "Anticipate turns. Correct for crosswind.", "sky": Color("d6a797"), "ground": Color("b76348"), "rock": Color("773e43"), "accent": Color("ffe0a6"), "wind": 3.0},
-	{"name": "EUROPA", "subtitle": "Blue silence", "lesson": "Manage momentum. Protect your clearance.", "sky": Color("172b48"), "ground": Color("81b9cf"), "rock": Color("385875"), "accent": Color("93ebff"), "wind": 1.0}
+	{"name": "TERRA", "subtitle": "Verdant passage", "lesson": "Read terrain. Hold a clean line.", "sky": Color("b9d7d9"), "ground": Color("548d79"), "rock": Color("355868"), "accent": Color("b4ffcc"), "wind": 0.0, "sky_top": Color("4a84ad"), "sky_horizon": Color("d9ece8"), "cloud": Color("f3f9fa")},
+	{"name": "ARES", "subtitle": "The red escarpment", "lesson": "Anticipate turns. Correct for crosswind.", "sky": Color("d6a797"), "ground": Color("b76348"), "rock": Color("773e43"), "accent": Color("ffe0a6"), "wind": 3.0, "sky_top": Color("6a3d46"), "sky_horizon": Color("ebb698"), "cloud": Color("f0cbb4")},
+	{"name": "EUROPA", "subtitle": "Blue silence", "lesson": "Manage momentum. Protect your clearance.", "sky": Color("172b48"), "ground": Color("81b9cf"), "rock": Color("385875"), "accent": Color("93ebff"), "wind": 1.0, "sky_top": Color("091224"), "sky_horizon": Color("2a5c85"), "cloud": Color("8dc5e8")}
 ]
 const GATE_COUNT = 16
 const RADIUS = 10.0
@@ -129,6 +129,19 @@ func build(kind: int, tier: int = 0, seed_value: int = 0):
 			mountain.position = Vector3(side * rng.randf_range(250, 320), peak_height / 2 - 5, 120 - i * 90)
 			mountain.material_override = material(palette.rock.lightened(0.15))
 			root.add_child(mountain)
+	var cloud_material = material(palette.cloud)
+	for i in range(18):
+		var cluster = Node3D.new()
+		cluster.position = Vector3(rng.randf_range(-240.0, 240.0), rng.randf_range(198.0, 255.0), rng.randf_range(-1900.0, 60.0))
+		root.add_child(cluster)
+		for puff_idx in range(3):
+			var puff = MeshInstance3D.new()
+			var mesh = BoxMesh.new()
+			mesh.size = Vector3(rng.randf_range(26.0, 52.0), rng.randf_range(7.0, 14.0), rng.randf_range(18.0, 36.0))
+			puff.mesh = mesh
+			puff.position = Vector3((puff_idx - 1) * rng.randf_range(14.0, 24.0), rng.randf_range(-4.0, 5.0), rng.randf_range(-10.0, 10.0))
+			puff.material_override = cloud_material
+			cluster.add_child(puff)
 
 	# Stage-three hazards share the route seed, so a retry keeps its obstacles.
 	# Debris never spawns inside the gate plane; the pilot has room to anticipate it.
