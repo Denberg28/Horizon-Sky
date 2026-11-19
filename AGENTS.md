@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Version: 1.1 | Updated: 6 October 2026
+Version: 1.4 plus Horizon Sky rc.9 amendment | Updated: 19 November 2026
 
 ## Purpose and priorities
 
@@ -127,3 +127,13 @@ Report concisely: what changed/why; version/commit/artifact; checks/results; unt
 - Run `godot --headless --path . --editor --import --quit`, then `godot --headless --path . --script tests/run_tests.gd -- --test`. Tests must use isolated test save paths.
 - RadioMaster Pocket/other USB HID controller HIL and Windows interactive checks are required for stable. Until evidenced, publish only labeled prereleases.
 - Do not overwrite published versions. Keep candidate build workflow gated on source, behavior and Windows package smoke checks.
+
+## rc.9 training and audio rules — 19 November 2026
+
+Follow the upstream [Marlou Prompt Constitution v3.2](https://github.com/Denberg28/Agents_md/blob/main/Marlou_Prompt_Constitution_v3.md) and current upstream AGENTS.md v1.4. Prioritize minimal paragraph-style code sections, exact symbol edit guides, targeted tests, concise continuity checkpoints, and verified GitHub candidate releases by default.
+
+Horizon Sky is primarily a **fixed-wing RC Mode 2 muscle-memory game**. Left stick vertical = non-centering throttle, horizontal = centered rudder; right stick vertical = elevator (pull down/back to pitch up), horizontal = aileron (right banks right). Preserve the internal semantic Vector4 `(aileron, elevator, rudder, throttle)` across USB, touch, keyboard, flight physics and HUD. RadioMaster Pocket HID indexes vary with EdgeTX and host: never assume hard-coded USB channel ordering without explicit user calibration and direction/end-point checks. Device loss/focus loss must pause and require deliberate resume.
+
+Avoid arcade turning or automatic velocity snapping in the fixed-wing trainer and jet; keep banked lift, gravity, aerodynamic drag, energy management, stall response, proportional rates and craft-specific engine spool. Never claim RC8 or real-world flight equivalence without measured comparative tests. Spacecraft is a bonus, not transferable fixed-wing practice. Progress from straight/level to coordinated turns, throttle/altitude and crosswind exercises.
+
+Sound design must be focused and nonfatiguing: no rapid repeating high-pitched note patterns or success-gate chirps; soft low-register evolving music below engine levels, sparse meaningful failure/end cues, licensed or original music with credits. RadioMaster Pocket USB HIL, input/display latency, human listening and transfer-of-training tests are blockers to stable claims.
