@@ -87,3 +87,16 @@ Tests require `--test` and isolate profile writes. `-- --touch-preview` explicit
 CI verifies vendor SHA512 downloads, imports, behavior/source checks, Windows export/PE/archive/checksum validation and packaged Windows headless startup. Only then does main publish an immutable prerelease. Stable promotion is intentionally absent until required device validation passes.
 
 See [spec](docs/SPEC.md), [architecture](docs/ARCHITECTURE.md), [tests/HIL](docs/TESTING.md), [limitations](docs/KNOWN_ISSUES.md) and [release notes](docs/RELEASE_NOTES.md).
+
+## RC Mode 2 fixed-wing practice (rc.9)
+
+Use the RadioMaster Pocket in EdgeTX USB Joystick mode, select the detected USB device in **Controls**, map **left horizontal = Rudder**, **left vertical = Throttle**, **right horizontal = Aileron**, **right vertical = Elevator**. Watch live values while moving one axis at a time; reverse if needed. Pull right stick down/back = nose up; right = right bank. Left stick right = right rudder; up = increase throttle. Capture full range and neutral positions, then lower throttle before launch. The USB axes can enumerate differently by radio and firmware. The touch layout is identical; throttle holds on release. Start with the Kestrel trainer, then the Peregrine jet; the Nomad spacecraft is only a bonus game craft. A new low-register ambient soundtrack replaces the repetitive loop and successful gates no longer chirp. See [constitution](docs/CONSTITUTION.md).
+
+### Manual edit guide
+
+| Desired result | File / symbol | Change and check |
+| --- | --- | --- |
+| RC channel order/inversion | `scripts/radio_input.gd` · `mapping`, `normalized` | Calibrate by live axes, verify 4 independent end points; never guess Pocket HID numbers |
+| Fixed-wing feel | `scripts/flight_model.gd` · `VEHICLES`, `_step_aircraft` | Tune roll/pitch/yaw rates and pitch `stability`, verify cruise, stall, glide and bank tests |
+| Joystick labels/travel | `scripts/touch_controls.gd` · `_draw`, `travel` | Change UI text or travel px; test two-touch edge reach |
+| Soundtrack and cues | `scripts/flight_audio.gd` · `MUSIC_SOURCES`, `play_cue` | Use original/licensed assets; verify mute, pause, loop and nonrepetitive feedback |
