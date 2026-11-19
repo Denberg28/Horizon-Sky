@@ -14,3 +14,6 @@ Original Ogg files unchanged; runtime volume and looping only.
 Copyright/attribution retained: Leonardo Paz. No endorsement implied.
 
 Source file names and SHA256 checksums: manifest.json.
+
+Horizon Sky Focus Suite: focus_1.wav, focus_2.wav, focus_3.wav.
+Original project-created algorithmically composed and PCM synthesized low-register ambient score, 19 November 2026. No third-party musical samples. May be freely redistributed with Horizon Sky. Older Leonardo Paz music stays in source with CC BY 4.0 attribution above but is not part of current playback.
