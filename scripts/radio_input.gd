@@ -22,8 +22,17 @@ func _init():
 func defaults():
 	mapping = []
 	for axis in range(4):
-		mapping.append({"axis": axis, "min": -1.0, "center": 0.0, "max": 1.0, "invert": axis == 1, "deadzone": 0.04})
+		mapping.append({"axis": axis, "min": -1.0, "center": 0.0, "max": 1.0, "invert": axis == 1, "deadzone": 0.04, "expo": 0.0, "rate": 1.0})
 	calibrated = false
+
+func apply_hall_gimbal_tuning(high_rate: bool = false):
+	var deadzones = [0.01, 0.01, 0.015, 0.0]
+	var expos = [0.25, 0.25, 0.20, 0.0]
+	var rates = [1.15 if high_rate else 1.0, 1.15 if high_rate else 1.0, 1.10 if high_rate else 1.0, 1.0]
+	for i in range(mini(mapping.size(), 4)):
+		mapping[i]["deadzone"] = deadzones[i]
+		mapping[i]["expo"] = expos[i]
+		mapping[i]["rate"] = rates[i]
 
 func select_touch():
 	keyboard = false
@@ -73,6 +82,12 @@ func valid_mapping(candidate) -> bool:
 				return false
 		if m.min < -1.01 or m.max > 1.01 or m.center - m.min < 0.15 or m.max - m.center < 0.15 or m.deadzone < 0 or m.deadzone > 0.25:
 			return false
+		if m.has("expo"):
+			if not (m.expo is float or m.expo is int) or not is_finite(m.expo) or m.expo < 0.0 or m.expo > 0.85:
+				return false
+		if m.has("rate"):
+			if not (m.rate is float or m.rate is int) or not is_finite(m.rate) or m.rate < 0.35 or m.rate > 1.5:
+				return false
 	return true
 
 static func normalized(raw: float, m: Dictionary, throttle_axis: bool = false) -> float:
@@ -85,6 +100,10 @@ static func normalized(raw: float, m: Dictionary, throttle_axis: bool = false) -
 	var span: float = m.max - m.center if centered >= 0 else m.center - m.min
 	var value = clampf(centered / maxf(0.01, span), -1, 1)
 	value = signf(value) * maxf(0, (absf(value) - m.deadzone) / (1.0 - m.deadzone))
+	var expo: float = clampf(float(m.get("expo", 0.0)), 0.0, 0.85)
+	var rate: float = clampf(float(m.get("rate", 1.0)), 0.35, 1.5)
+	value = value * ((1.0 - expo) + expo * value * value)
+	value = clampf(value * rate, -1.0, 1.0)
 	return -value if m.invert else value
 
 func read(dt: float) -> Vector4:
