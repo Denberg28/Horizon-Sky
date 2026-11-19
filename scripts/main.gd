@@ -7,7 +7,7 @@ const HUD = preload("res://scripts/hud.gd")
 const TouchControls = preload("res://scripts/touch_controls.gd")
 const FlightAudio = preload("res://scripts/flight_audio.gd")
 const FlightEffects = preload("res://scripts/flight_effects.gd")
-const VERSION = "0.1.0-rc.8"
+const VERSION = "0.1.0-rc.9"
 const INK = Color("101e2c")
 const MINT = Color("b4ffcc")
 var flight = FlightModel.new()
@@ -384,7 +384,7 @@ func show_menu():
 	touch_controls.safe_bounds = safe
 	var width = minf(450, safe.size.x)
 	var col = panel(overlay, Rect2(safe.position, Vector2(width, safe.size.y)), 0.96, true)
-	text(col, "HORIZON SKY", 32, MINT)
+	text(col, "HORIZON SKY · MODE 2", 30, MINT)
 	text(col, "World", 16, Color("a9bbc4"))
 	var world_names = []
 	for world in Course.PLANETS:
@@ -394,6 +394,7 @@ func show_menu():
 		planet = i
 		stage = 0
 		call_deferred("show_menu"))
+	text(col, "RC fixed-wing practice · start with Trainer", 16, Color("a9bbc4"))
 	text(col, "Aircraft", 16, Color("a9bbc4"))
 	var craft_names = []
 	for v in FlightModel.VEHICLES:
@@ -447,10 +448,9 @@ func show_credits():
 	text(col, "AUDIO CREDITS", 28, MINT)
 	text(col, "Sci-fi Sounds · Kenney", 24)
 	text(col, "CC0 1.0 · kenney.nl/assets/sci-fi-sounds\ncreativecommons.org/publicdomain/zero/1.0/", 18)
-	text(col, "Outer Space Music Pack · Leonardo Paz", 24)
-	text(col, "Lift Off A · Racing Through Asteroids · Battle in Outer Space", 18)
-	text(col, "CC BY 4.0 · creativecommons.org/licenses/by/4.0/\nopengameart.org/content/outer-space-music-pack", 18)
-	text(col, "Original audio files unchanged; runtime mixing, pitch and looping. No artist endorsement implied.", 16)
+	text(col, "Horizon Sky Focus Suite · original ambient WAV music", 21)
+	text(col, "Three evolving low-register 24-second pieces; no repetitive gate chirps.", 17)
+	text(col, "Legacy Leonardo Paz tracks retained in source under CC BY 4.0; no longer in active playback.", 16)
 	button(col, "Hangar", show_menu)
 
 func authority_name() -> String:
@@ -495,7 +495,8 @@ func show_calibration():
 				radio.mapping = saved.duplicate(true)
 				radio.calibrated = true
 		show_calibration())
-	text(col, "1   Map each channel to a distinct axis. Watch the live values; reverse if needed.", 17)
+	text(col, "MODE 2 · LEFT: throttle / rudder · RIGHT: elevator / aileron", 18, MINT)
+	text(col, "Move ONE stick axis at a time; map and reverse by live feedback.", 17)
 	text(col, "CHANNEL                 AXIS             REVERSE             LIVE INPUT", 14, Color("a9bbc4"))
 	for i in range(4):
 		var row = HBoxContainer.new()
@@ -533,7 +534,7 @@ func show_calibration():
 	text(col, "3   Center roll, pitch and yaw. Capture center & save. Then LOWER throttle.", 17)
 	button(col, "Capture center & save calibration", save_calibration)
 	config_status = text(col, "Calibrated. Confirm directions before flight." if radio.calibrated else "Not calibrated. Keyboard remains available.", 16, MINT)
-	text(col, "Positive: roll → bank right; pitch → climb; yaw → turn right; throttle → faster.\nChannels must span both sides of center. Never calibrate with trim offsets.\nDevice loss or focus loss pauses flight; reconnect always requires explicit resume.", 16, Color("a9bbc4"))
+	text(col, "Right stick right banks right; right stick DOWN raises nose.\nLeft stick right is right rudder; left stick UP raises throttle.\nUSB axis indexes vary by radio; verify each normalized output before flight.\nNo trim offsets. Device/focus loss pauses; reconnect requires explicit resume.", 16, Color("a9bbc4"))
 	button(col, "Refresh device list", show_calibration)
 	button(col, "Back to hangar", show_menu)
 
@@ -546,8 +547,8 @@ func show_touch_guide():
 	var width = minf(760.0, view.x - 36.0)
 	var col = panel(overlay, Rect2((view.x - width) * 0.5, 18, width, view.y - 36), 0.96, true)
 	text(col, "TOUCH FLIGHT CONTROLS", 30, MINT)
-	text(col, "Left: power ↑↓ · rudder ←→", 24)
-	text(col, "Right: elevator ↑↓ · aileron ←→", 24)
+	text(col, "LEFT: throttle ↑↓ · rudder ←→", 22)
+	text(col, "RIGHT: elevator ↑↓ · aileron ←→", 22)
 	text(col, "Pull down to raise the nose. Power holds on release.", 20)
 	button(col, "Back to hangar", show_menu)
 
@@ -702,7 +703,8 @@ func _physics_process(dt: float):
 		else:
 			streak = 0
 		course.mark_gate(next_gate, success)
-		audio.play_cue("pass" if success else "miss")
+		if not success:
+			audio.play_cue("miss")
 		next_gate += 1
 		message = ("CENTERED" if distance < radius * 0.35 else "PASS") + "  /  STREAK %d" % streak if success else "MISSED"
 		message_time = 2.0
